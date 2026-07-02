@@ -2038,6 +2038,10 @@ window.closeUexModal = function() {
           <input type="text" class="detail-kw-input" id="detail-keyword-input" value="${escV(s.searchKeyword)}" placeholder="키워드를 입력해주세요" oninput="updateKwCount(this.value)">
           <div id="mid-history-area" style="display:none;margin-top:8px;"></div>
         </div>
+        <div class="modal-field">
+          <label>유입플 키워드</label>
+          <input type="text" class="detail-kw-input" id="detail-yupfl-keyword-input" value="${escV(s.yupflKeyword)}" placeholder="유입플 키워드를 입력해주세요">
+        </div>
         <div class="modal-footer">
           <button class="btn-cancel" onclick="closeDetailModal('${key}')">닫기</button>
           <button class="btn-save" style="background:rgba(59,130,246,1);" onclick="acceptFromDetail('${key}')">접수</button>
@@ -2185,6 +2189,7 @@ window.closeUexModal = function() {
       endDate:       read('d-endDate'),
       memo:          document.getElementById('d-memo')?.value.trim() ?? '',
       searchKeyword: read('detail-keyword-input'),
+      yupflKeyword:  read('detail-yupfl-keyword-input'),
     };
     const updates = {};
     for (const [k, v] of Object.entries(fields)) {
