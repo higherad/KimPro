@@ -4248,7 +4248,7 @@ function renderAcctList() {
             <td style="padding:9px 10px;font-weight:600;">${esc(a.agency) || '-'}</td>
             <td style="padding:9px 10px;">${esc(a.id)}</td>
             <td style="padding:9px 10px;">${esc(a.pw)}</td>
-            <td style="padding:9px 10px;text-align:right;">${(Number(a.unitPrice)||0).toLocaleString()}원</td>
+            <td style="padding:9px 10px;text-align:center;">${(Number(a.unitPrice)||0).toLocaleString()}원</td>
             <td style="padding:9px 10px;white-space:nowrap;text-align:right;">
               <button onclick="editAcct('${esc(key)}')" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;margin-right:4px;">수정</button>
               <button onclick="deleteAcct('${esc(key)}')" style="padding:5px 10px;border:none;border-radius:6px;background:#fef2f2;color:var(--danger);cursor:pointer;font-size:12px;font-family:inherit;">삭제</button>
