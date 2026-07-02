@@ -3898,8 +3898,8 @@ window.closeUexModal = function() {
     const actualAmount = entries.reduce((a,e) => a+(e.amount||0), 0);
     const isShort = actualAmount < settingAmount;
     document.getElementById('ys-total').innerHTML = isShort
-      ? `금액 합계 ${actualAmount.toLocaleString()}원 &lt; <span style="color:var(--danger);font-weight:700;">[환불]</span> 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`
-      : `금액 합계 ${actualAmount.toLocaleString()}원 &ge; 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`;
+      ? `${entries.length}건 · <span style="color:var(--danger);font-weight:700;">[환불]</span> 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`
+      : `${entries.length}건 · 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`;
   }
 
   function setGradeStatus(p, gradeName, html) {
@@ -4133,7 +4133,7 @@ window.closeUexModal = function() {
       <div style="font-size:15px;font-weight:700;">💳 유입플 정산</div>
       <button onclick="closeYupflSettleModal()" style="border:none;background:#f1f5f9;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;line-height:1;">✕</button>
     </div>
-    <div id="ys-total" style="font-size:13px;font-weight:600;color:var(--text);background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;"></div>
+    <div id="ys-total" style="font-size:12px;color:var(--text2);margin-bottom:14px;"></div>
     <div id="ys-list"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px;">
       <button onclick="closeYupflSettleModal()" style="padding:9px 20px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-family:inherit;">닫기</button>
