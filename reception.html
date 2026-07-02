@@ -1500,7 +1500,7 @@ import HA from './store.js';
       </tr>
     </thead>
     <tbody id="receipt-body">
-      <tr><td colspan="15" class="loading-wrap"><div class="spinner"></div> 데이터 불러오는 중...</td></tr>
+      <tr><td colspan="15"><div class="loading-wrap"><div class="spinner"></div> 데이터 불러오는 중...</div></td></tr>
     </tbody>
   </table>
 </div>
@@ -1756,7 +1756,7 @@ window.closeUexModal = function() {
 
     if (!_slotsLoaded || forceReload) {
       document.getElementById('receipt-body').innerHTML =
-        '<tr><td colspan="15" class="loading-wrap"><div class="spinner"></div> 데이터 불러오는 중...</td></tr>';
+        '<tr><td colspan="15"><div class="loading-wrap"><div class="spinner"></div> 데이터 불러오는 중...</div></td></tr>';
       allSlots = await HA.getSlots();
       _slotsLoaded = true;
 
