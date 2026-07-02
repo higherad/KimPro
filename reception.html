@@ -3864,13 +3864,13 @@ window.closeUexModal = function() {
       listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;">오늘 정산 기록이 없습니다.</div>';
     } else {
       listEl.innerHTML = `
-        <table class="ag-table">
+        <table class="ag-table" style="table-layout:fixed;">
           <thead><tr>
-            <th style="text-align:center">접수시각</th>
-            <th style="text-align:center">대행사</th><th style="text-align:center">업체명</th><th style="text-align:center">플레이스ID</th>
-            <th style="text-align:center">작업타수</th><th style="text-align:center">일수</th>
-            <th style="text-align:center">미션</th><th style="text-align:center">단가</th>
-            <th style="text-align:center">금액</th>
+            <th style="text-align:center;width:15%">접수시간</th>
+            <th style="text-align:center;width:9%">대행사</th><th style="text-align:center;width:20%">업체명</th><th style="text-align:center;width:12%">플레이스ID</th>
+            <th style="text-align:center;width:9%">작업타수</th><th style="text-align:center;width:7%">일수</th>
+            <th style="text-align:center;width:7%">미션</th><th style="text-align:center;width:10%">단가</th>
+            <th style="text-align:center;width:11%">금액</th>
           </tr></thead>
           <tbody>
             ${entries
