@@ -3895,11 +3895,8 @@ window.closeUexModal = function() {
         </table>`;
     }
 
-    const actualAmount = entries.reduce((a,e) => a+(e.amount||0), 0);
-    const isShort = actualAmount < settingAmount;
-    document.getElementById('ys-total').innerHTML = isShort
-      ? `${entries.length}건 · <span style="color:var(--danger);font-weight:700;">[환불]</span> 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`
-      : `${entries.length}건 · 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`;
+    document.getElementById('ys-total').textContent =
+      `${entries.length}건 · [환불] 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`;
   }
 
   function setGradeStatus(p, gradeName, html) {
