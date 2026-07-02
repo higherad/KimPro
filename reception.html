@@ -3875,7 +3875,7 @@ window.closeUexModal = function() {
                   <td style="text-align:center">${e.mission ?? 0}</td>
                   <td style="text-align:center">${(e.unitPrice||0).toLocaleString()}원</td>
                   <td style="text-align:center;font-weight:600;">${(e.amount||0).toLocaleString()}원</td>
-                  <td style="text-align:center;font-size:11px;color:var(--text2);white-space:nowrap;">${e.submittedAt ? e.submittedAt.replace('T',' ').slice(0,16) : '-'}</td>
+                  <td style="text-align:center;font-size:11px;color:var(--text2);white-space:nowrap;">${e.submittedAt ? e.submittedAt.slice(0,10) : '-'}</td>
                 </tr>`).join('')}
             </tbody>
           </table>` : ''}
