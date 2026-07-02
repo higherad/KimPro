@@ -2044,7 +2044,7 @@ window.closeUexModal = function() {
             <span>유입플 키워드</span>
             ${(s.mid && HA.getCurrentUser()?.role !== 'guest') ? `<button onclick="toggleYupflMidHistory('${escV(s.mid)}','${key}')" id="yupfl-hist-btn"
               style="font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:#f8fafc;color:var(--text2);cursor:pointer;font-family:inherit;">
-              이전 유입플 키워드 보기
+              이전 키워드 보기
             </button>` : ''}
           </label>
           <input type="text" class="detail-kw-input" id="detail-yupfl-keyword-input" value="${escV(s.yupflKeyword)}" placeholder="유입플 키워드를 입력해주세요">
@@ -2178,7 +2178,7 @@ window.closeUexModal = function() {
 
     if (area.style.display !== 'none') {
       area.style.display = 'none';
-      btn.textContent = '이전 유입플 키워드 보기';
+      btn.textContent = '이전 키워드 보기';
       return;
     }
 
