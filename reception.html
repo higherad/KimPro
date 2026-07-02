@@ -59,7 +59,7 @@
   #receipt-page .tbl-wrap {
     background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden;
   }
-  #receipt-page table { width:100%; border-collapse:collapse; font-size:12px; }
+  #receipt-page table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
   #receipt-page thead th {
     background:#1e293b; color:#fff; padding:11px 10px; font-weight:500;
     border-right:1px solid #2d3f55; white-space:nowrap; text-align:center;
@@ -1756,7 +1756,7 @@ window.closeUexModal = function() {
 
     if (!_slotsLoaded || forceReload) {
       document.getElementById('receipt-body').innerHTML =
-        '<tr><td colspan="15"><div class="loading-wrap"><div class="spinner"></div> 불러오는 중...</div></td></tr>';
+        '<tr><td colspan="15" class="loading-wrap"><div class="spinner"></div> 데이터 불러오는 중...</td></tr>';
       allSlots = await HA.getSlots();
       _slotsLoaded = true;
 
