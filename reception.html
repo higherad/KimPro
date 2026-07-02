@@ -2633,6 +2633,12 @@ window.closeUexModal = function() {
     return lrm(asgn, target);
   }
 
+  function calcIkil(startDate) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const start = startDate ? new Date(startDate) : today; start.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((start - today) / 86400000));
+  }
+
   function kwForProd(keywords, prod) {
     if (!keywords) return '';
     const parts = keywords.split(',').map(k => k.trim()).filter(k => k);
@@ -3407,12 +3413,7 @@ window.closeUexModal = function() {
         </div>
         <div id="stab-panel-fixed" style="display:${defaultTab==='fixed'?'block':'none'}">
           <div style="font-size:12px;margin-bottom:14px;" id="youpfl-sub"></div>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;">
-            <span style="font-size:12px;font-weight:700;color:#92400e;white-space:nowrap;">미션</span>
-            <input type="number" id="youpfl-mission" min="0" value=""
-              style="width:70px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;font-family:inherit;outline:none;text-align:center;">
-            <span style="font-size:11px;color:var(--muted);margin-left:auto;">시작일 기준 자동 계산 | 당일=0, 익일=1, N일 후=N</span>
-          </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">미션 번호는 목록에서 행별로 입력·수정하세요. 기본값은 시작일 기준 자동 계산(당일=0, 익일=1, N일 후=N)입니다.</div>
           <div id="youpfl-body"></div>
           <div class="modal-footer">
             <button class="btn-cancel" id="youpfl-close-btn">닫기</button>
@@ -3594,6 +3595,7 @@ window.closeUexModal = function() {
       <th style="width:72px;text-align:right">작업타수</th>
       <th style="width:44px;text-align:center">일수</th>
       <th style="width:84px">시작일</th>
+      <th style="width:64px;text-align:center">미션</th>
       <th style="width:76px;text-align:center">상태</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
@@ -3603,6 +3605,11 @@ window.closeUexModal = function() {
       const statusTd = document.createElement('td');
       statusTd.style.cssText = 'text-align:center;white-space:nowrap';
       statusTd.innerHTML = r._fixedSubmitted ? '<span style="color:var(--accent);">✅ 완료</span>' : '-';
+      const missionTd = document.createElement('td');
+      missionTd.style.cssText = 'text-align:center;white-space:nowrap';
+      missionTd.innerHTML = `<input type="number" min="0" class="ag-mission-input" data-key="${escProd(r._slotKey||'')}"
+        value="${calcIkil(r.startDate)}" ${r._fixedSubmitted?'disabled':''}
+        style="width:52px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit;text-align:center;outline:none;">`;
       tr.innerHTML = `
         <td style="${ell}" title="${escProd(r.storeName)}">${escProd(r.storeName||'-')}</td>
         <td style="${ell}" title="${escProd(r.rankKw)}">${escProd(r.rankKw||'-')}</td>
@@ -3612,6 +3619,7 @@ window.closeUexModal = function() {
         <td style="text-align:center;white-space:nowrap">${r.days||0}</td>
         <td style="white-space:nowrap">${escProd(r.startDate||'-')}</td>
       `;
+      tr.appendChild(missionTd);
       tr.appendChild(statusTd);
       tbody.appendChild(tr);
       r._statusTd = statusTd;
@@ -3643,12 +3651,16 @@ window.closeUexModal = function() {
       return;
     }
 
-    const misVal = overlay.querySelector('#youpfl-mission')?.value;
-    if (misVal === '' || misVal === null || misVal === undefined) {
-      alert('미션 번호를 지정해주세요.');
-      return;
+    const missionByKey = new Map();
+    for (const r of pendingRows) {
+      const el = overlay.querySelector(`.ag-mission-input[data-key="${CSS.escape(r._slotKey||'')}"]`);
+      const val = el?.value;
+      if (val === '' || val === null || val === undefined) {
+        alert(`"${r.storeName||r._slotKey}" 항목의 미션 번호를 지정해주세요.`);
+        return;
+      }
+      missionByKey.set(r._slotKey, Math.max(0, parseInt(val, 10) || 0));
     }
-    const mis = Math.max(0, parseInt(misVal, 10) || 0);
 
     applyBtn.disabled = true; applyBtn.textContent = '⏳ 업로드 중...'; applyBtn.style.background = '#6b7280';
     closeBtn.disabled = true;
@@ -3656,16 +3668,10 @@ window.closeUexModal = function() {
     const normalBtn = overlay.querySelector('#submit-apply-btn');
     if (normalBtn) normalBtn.disabled = true;
 
-    function calcIkil(startDate) {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const start = startDate ? new Date(startDate) : today; start.setHours(0, 0, 0, 0);
-      return Math.max(0, Math.round((start - today) / 86400000));
-    }
-
     let result;
     try {
       result = await callBizfitProxy('/youpfl-upload', {
-        rows: pendingRows.map(r => ({ rankKw: r.rankKw, workKw: r.workKw, placeId: r.placeId, target: r.target, days: r.days, mission: mis, ikil: calcIkil(r.startDate) })),
+        rows: pendingRows.map(r => ({ rankKw: r.rankKw, workKw: r.workKw, placeId: r.placeId, target: r.target, days: r.days, mission: missionByKey.get(r._slotKey), ikil: calcIkil(r.startDate) })),
       });
     } catch(e) {
       result = { success: false, message: '서버 호출 실패: ' + e.message };
