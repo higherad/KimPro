@@ -3501,7 +3501,7 @@ window.closeUexModal = function() {
         </div>
         <div id="stab-panel-fixed" style="display:${defaultTab==='fixed'?'block':'none'}">
           <div style="font-size:12px;margin-bottom:14px;" id="youpfl-sub"></div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">미션 번호는 목록에서 행별로 입력·수정하세요. 기본값은 시작일 기준 자동 계산(당일=0, 익일=1, N일 후=N)입니다.</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">미션 번호는 목록에서 행별로 직접 입력하세요(빈칸으로 시작). 회색 숫자는 시작일 기준 참고값입니다(당일=0, 익일=1, N일 후=N).</div>
           <div id="youpfl-body"></div>
           <div class="modal-footer">
             <button class="btn-cancel" id="youpfl-close-btn">닫기</button>
@@ -3700,7 +3700,7 @@ window.closeUexModal = function() {
       const missionTd = document.createElement('td');
       missionTd.style.cssText = 'text-align:center;white-space:nowrap';
       missionTd.innerHTML = `<input type="number" min="0" class="ag-mission-input" data-key="${escProd(r._slotKey||'')}"
-        value="${calcIkil(r.startDate)}" ${r._fixedSubmitted?'disabled':''}
+        value="" placeholder="${calcIkil(r.startDate)}" ${r._fixedSubmitted?'disabled':''}
         style="width:52px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit;text-align:center;outline:none;">`;
       const amountTd = document.createElement('td');
       amountTd.style.cssText = 'text-align:right;white-space:nowrap';
