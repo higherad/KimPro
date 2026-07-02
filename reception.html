@@ -3828,42 +3828,36 @@ window.closeUexModal = function() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  // 현재 active 상태인 유입플 대상 캠페인들로 "세팅되어 있어야 할" 유입플 금액 합산
-  async function computeYupflSettingAmount() {
-    const yupfl = ap().find(p => p.fixedAlloc);
-    if (!yupfl) return 0;
-    const priceMap = await getYupflUnitPriceMap();
-    return allSlots
-      .filter(s => s.status === 'active')
-      .reduce((sum, s) => {
-        const yAmt = Math.min(yupflAlloc(s.dailyTarget||0, yupfl.fixedPct), s.dailyTarget||0);
-        const unitPrice = priceMap.get(s.agencyId||'') || 0;
-        return sum + yAmt * (s.days||0) * unitPrice;
-      }, 0);
-  }
-
   window.openYupflSettleModal = async function() {
     const modal = document.getElementById('yupfl-settle-modal');
     modal.style.display = 'flex';
     document.getElementById('ys-list').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>불러오는 중...</div>';
     document.getElementById('ys-total').textContent = '';
 
-    const [snap, settingAmount] = await Promise.all([
-      HA.getDoc('kimpro/yupfl_settlements'),
-      computeYupflSettingAmount(),
-    ]);
+    const snap = await HA.getDoc('kimpro/yupfl_settlements');
     const data = snap.exists() ? snap.val() : {};
     const entries = (data._date === todayDateKey())
       ? Object.entries(data).filter(([k]) => k !== '_date').map(([,v]) => v)
       : [];
-    renderYupflSettleToday(entries, settingAmount);
+    renderYupflSettleToday(entries);
   };
 
   window.closeYupflSettleModal = function() {
     document.getElementById('yupfl-settle-modal').style.display = 'none';
   };
 
-  function renderYupflSettleToday(entries, settingAmount) {
+  function fmtSettleTime(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    const yyyy = d.getFullYear();
+    const mo = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mi = String(d.getMinutes()).padStart(2,'0');
+    return `${yyyy}-${mo}-${dd} ${hh}:${mi}`;
+  }
+
+  function renderYupflSettleToday(entries) {
     const listEl = document.getElementById('ys-list');
     if (!entries.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;">오늘 정산 기록이 없습니다.</div>';
@@ -3882,7 +3876,7 @@ window.closeUexModal = function() {
               .sort((a,b) => (b.submittedAt||'').localeCompare(a.submittedAt||''))
               .map(e => `
               <tr>
-                <td style="text-align:center;font-size:11px;color:var(--text2);white-space:nowrap;">${e.submittedAt ? e.submittedAt.replace('T',' ').slice(0,19) : '-'}</td>
+                <td style="text-align:center;font-size:11px;color:var(--text2);white-space:nowrap;">${fmtSettleTime(e.submittedAt)}</td>
                 <td style="text-align:center">${escProd(e.agencyId||'-')}</td>
                 <td style="text-align:center">${escProd(e.storeName||'-')}</td>
                 <td style="text-align:center;font-size:11px;color:var(--text2)">${escProd(e.mid||'-')}</td>
@@ -3896,8 +3890,9 @@ window.closeUexModal = function() {
         </table>`;
     }
 
+    const totalAmount = entries.reduce((a,e) => a+(e.amount||0), 0);
     document.getElementById('ys-total').textContent =
-      `전체 ${entries.length}건 · [환불] 유입플 세팅 금액 : ${settingAmount.toLocaleString()}원`;
+      `전체 ${entries.length}건 · [환불] 유입플 세팅 금액 : ${totalAmount.toLocaleString()}원`;
   }
 
   function setGradeStatus(p, gradeName, html) {
