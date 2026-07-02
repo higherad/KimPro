@@ -3435,13 +3435,16 @@ window.closeUexModal = function() {
     }).filter(Boolean);
   }
 
-  // 유입플 접수 성공 시 정산 기록 — 서버에 저장하지 않고 브라우저 세션 메모리에만 보관
-  // (새로고침하면 초기화됨, 당일 조회용 임시 집계)
-  let _yupflTodayEntries = [];
-  function recordYupflSettlement(pendingRows, missionByKey) {
+  // 유입플 접수 성공 시 정산 기록 저장 — 날짜별로 쌓지 않고 kimpro/yupfl_settlements
+  // 한 노드에 당일 것만 유지. 날짜가 바뀐 걸 감지하면 이전 데이터는 버리고 새로 시작
+  async function recordYupflSettlement(pendingRows, missionByKey) {
     const now = new Date();
+    const dateKey = todayDateKey();
+    const snap = await HA.getDoc('kimpro/yupfl_settlements');
+    const prev = snap.exists() ? snap.val() : {};
+    const data = (prev._date === dateKey) ? prev : { _date: dateKey };
     pendingRows.forEach(r => {
-      _yupflTodayEntries.push({
+      data[r._slotKey] = {
         agencyId:   r.agencyId||'',
         storeName:  r.storeName||'',
         mid:        r.placeId||'',
@@ -3451,8 +3454,9 @@ window.closeUexModal = function() {
         amount:     r.amount||0,
         mission:    missionByKey.get(r._slotKey) ?? 0,
         submittedAt: now.toISOString(),
-      });
+      };
     });
+    await HA.setDoc('kimpro/yupfl_settlements', data);
   }
 
   window.submitDirect = async function() {
@@ -3779,7 +3783,7 @@ window.closeUexModal = function() {
     if (result.success) {
       pendingRows.forEach(r => { if (r._statusTd) r._statusTd.innerHTML = '<span style="color:var(--accent);">✅ 완료</span>'; });
       subEl.innerHTML = `<span style="color:var(--accent);font-weight:600;">✅ ${escProd(result.message||'업로드 완료')}</span>`;
-      recordYupflSettlement(pendingRows, missionByKey);
+      await recordYupflSettlement(pendingRows, missionByKey);
       const slotMap = new Map(allSlots.map(s => [s._key, s]));
       const pendingSlotKeys = pendingRows.map(r => r._slotKey).filter(Boolean);
       const allDoneSlotKeys = rows.map(r => r._slotKey).filter(Boolean); // already + 이번에 성공한 것 전부
@@ -3816,8 +3820,13 @@ window.closeUexModal = function() {
   }
 
   // ════════════════════════════════════════════════════════
-  // 유입플 정산 — 서버에 저장하지 않고, 이번 브라우저 세션에서 접수한 금액만 조회
+  // 유입플 정산 — 서버(kimpro/yupfl_settlements)에 당일 것만 기록/조회, 날짜 바뀌면 자동으로 새로 시작
   // ════════════════════════════════════════════════════════
+
+  function todayDateKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
 
   // 현재 active 상태인 유입플 대상 캠페인들로 "세팅되어 있어야 할" 유입플 금액 합산
   async function computeYupflSettingAmount() {
@@ -3839,8 +3848,15 @@ window.closeUexModal = function() {
     document.getElementById('ys-list').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>불러오는 중...</div>';
     document.getElementById('ys-total').textContent = '';
 
-    const settingAmount = await computeYupflSettingAmount();
-    renderYupflSettleToday(_yupflTodayEntries, settingAmount);
+    const [snap, settingAmount] = await Promise.all([
+      HA.getDoc('kimpro/yupfl_settlements'),
+      computeYupflSettingAmount(),
+    ]);
+    const data = snap.exists() ? snap.val() : {};
+    const entries = (data._date === todayDateKey())
+      ? Object.entries(data).filter(([k]) => k !== '_date').map(([,v]) => v)
+      : [];
+    renderYupflSettleToday(entries, settingAmount);
   };
 
   window.closeYupflSettleModal = function() {
