@@ -910,9 +910,6 @@ import HA from './store.js';
       .kw-fg textarea { resize:none; height:60px; }
       .kw-fg input[type=text]:focus, .kw-fg textarea:focus { border-color:#0277bd; }
       .kw-hint { font-size:10.5px; color:var(--muted); margin-top:3px; }
-      .kw-toggle { display:flex; background:#f0f2f5; border-radius:7px; padding:3px; gap:2px; margin-bottom:10px; }
-      .kw-toggle button { flex:1; padding:5px 0; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; background:transparent; color:#718096; font-family:inherit; }
-      .kw-toggle button.active { background:#fff; color:#0277bd; box-shadow:0 1px 3px rgba(0,0,0,.12); }
       .kw-btn-add { width:100%; padding:8px; border:none; border-radius:7px; background:#0277bd; color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
       .kw-btn-add:hover { background:#01579b; }
       .kw-upload-zone { border:2px dashed var(--border); border-radius:9px; padding:14px; text-align:center; cursor:pointer; transition:all .2s; background:#fafbfc; margin-top:4px; }
@@ -930,11 +927,7 @@ import HA from './store.js';
       .kw-tbl tbody tr.kw-checked { background:#e3f2fd; }
       .kw-tbl td { padding:7px 10px; vertical-align:middle; }
       .kw-td-id { font-weight:700; color:var(--text); font-family:monospace; font-size:11.5px; }
-      .kw-td-name { color:var(--text2); font-size:11px; margin-top:1px; }
       .kw-td-kw { color:var(--text2); font-size:11px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .kw-type-badge { display:inline-block; padding:2px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; }
-      .kw-type-pcode { background:#e9d8fd; color:#553c9a; }
-      .kw-type-mid   { background:#feebc8; color:#c05621; }
       .kw-sb { display:inline-block; padding:2px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; }
       .kw-sb-ready   { background:#f1f5f9; color:var(--text2); }
       .kw-sb-running { background:#e3f2fd; color:#1565c0; }
@@ -983,21 +976,13 @@ import HA from './store.js';
           <span class="kw-srv-badge kw-srv-chk" id="kw-srv-badge">⏳ 서버 확인 중</span>
         </div>
         <div class="kw-card-body">
-          <div class="kw-toggle">
-            <button id="kw-toggle-pcode" class="active" onclick="kwSetIdType('pcode')">Pcode</button>
-            <button id="kw-toggle-mid" onclick="kwSetIdType('mid')">MID</button>
-          </div>
           <div class="kw-fg">
-            <label id="kw-id-label">Pcode</label>
-            <input type="text" id="kw-id" placeholder="예: P21169CA0DAB3776F">
-          </div>
-          <div class="kw-fg">
-            <label>캠페인명 (선택)</label>
-            <input type="text" id="kw-name" placeholder="메모용">
+            <label>MID</label>
+            <input type="text" id="kw-id">
           </div>
           <div class="kw-fg">
             <label>키워드</label>
-            <textarea id="kw-keywords" placeholder="귀금속,귀금속방,귀금속위치"></textarea>
+            <textarea id="kw-keywords"></textarea>
             <div class="kw-hint">쉼표(,)로 구분 — A/B 동일하게 입력됩니다</div>
           </div>
           <div class="kw-fg">
@@ -1010,7 +995,7 @@ import HA from './store.js';
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">Pcode 또는 MID / 캠페인명 / 키워드 / 메모(선택)</div>
+            <div class="uz-hint">MID / 키워드 / 메모(선택)</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
         </div>
@@ -1022,7 +1007,7 @@ import HA from './store.js';
           <span class="kw-card-title">📋 처리 목록 <span class="kw-badge" id="kw-entry-count">0</span></span>
           <div class="kw-search">
             <span style="font-size:11px">🔍</span>
-            <input type="text" placeholder="Pcode / MID / 캠페인명 검색" oninput="kwFilterList(this.value)">
+            <input type="text" placeholder="MID 검색" oninput="kwFilterList(this.value)">
           </div>
         </div>
         <div class="kw-sel-row">
@@ -1038,15 +1023,14 @@ import HA from './store.js';
             <thead>
               <tr>
                 <th style="width:34px"></th>
-                <th>타입</th>
-                <th>Pcode / MID / 캠페인명</th>
+                <th>MID</th>
                 <th>키워드</th>
                 <th>메모</th>
                 <th style="width:68px">상태</th>
               </tr>
             </thead>
             <tbody id="kw-tbody">
-              <tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
+              <tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -1097,38 +1081,25 @@ window.closeKwModal = function() {
 (function() {
   const SERVER = 'https://macro-3-bizfit-keyword-938928195180.asia-northeast3.run.app';
   let kwEntries = [];
-  let kwIdType = 'pcode';
   let kwSearchQ = '';
 
   function kwEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function kwSave() { if (window.kwFbSave) window.kwFbSave(kwEntries); }
 
-  window.kwSetIdType = function(type) {
-    kwIdType = type;
-    document.getElementById('kw-toggle-pcode').classList.toggle('active', type === 'pcode');
-    document.getElementById('kw-toggle-mid').classList.toggle('active', type === 'mid');
-    document.getElementById('kw-id-label').textContent = type === 'pcode' ? 'Pcode' : 'MID';
-    document.getElementById('kw-id').placeholder = type === 'pcode' ? '예: P21169CA0DAB3776F' : '예: 1839711962';
-  };
-
-  function kwDetectIdType(value) { return /^P[A-Z0-9]{10,}/i.test(value) ? 'pcode' : 'mid'; }
-
   window.kwAddEntry = function() {
     const id       = document.getElementById('kw-id').value.trim();
-    const name     = document.getElementById('kw-name').value.trim();
     const keywords = document.getElementById('kw-keywords').value.trim();
     const memo     = document.getElementById('kw-memo').value.trim();
-    const id_type  = kwIdType;
-    if (!id) { alert(`${id_type === 'pcode' ? 'Pcode' : 'MID'}를 입력해주세요.`); return; }
+    const id_type  = 'mid';
+    if (!id) { alert('MID를 입력해주세요.'); return; }
     if (!keywords) { alert('키워드를 입력해주세요.'); return; }
-    kwEntries.push({ id, id_type, name, keywords, memo, status: 'ready', result: '' });
+    kwEntries.push({ id, id_type, keywords, memo, status: 'ready', result: '' });
     kwSave();
     document.getElementById('kw-id').value = '';
-    document.getElementById('kw-name').value = '';
     document.getElementById('kw-keywords').value = '';
     document.getElementById('kw-memo').value = '';
     kwRender();
-    kwLog(`추가 [${id_type.toUpperCase()}]: ${id}${name?' ('+name+')':''} — ${keywords.split(',').length}개 키워드`, 'info');
+    kwLog(`추가: ${id} — ${keywords.split(',').length}개 키워드`, 'info');
   };
 
   window.kwRemoveChecked = function() {
@@ -1171,28 +1142,24 @@ window.closeKwModal = function() {
     const tbody = document.getElementById('kw-tbody');
     document.getElementById('kw-entry-count').textContent = kwEntries.length;
     if (!kwEntries.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const list = kwSearchQ
-      ? kwEntries.filter(e => e.id.toLowerCase().includes(kwSearchQ) || (e.name||'').toLowerCase().includes(kwSearchQ))
+      ? kwEntries.filter(e => e.id.toLowerCase().includes(kwSearchQ))
       : kwEntries;
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const sc = { ready:'kw-sb-ready', running:'kw-sb-running', success:'kw-sb-success', fail:'kw-sb-fail' };
     const st = { ready:'대기', running:'⏳ 진행중', success:'✅ 완료', fail:'❌ 실패' };
     tbody.innerHTML = list.map(e => {
       const i = kwEntries.indexOf(e);
-      const typeCls  = e.id_type === 'pcode' ? 'kw-type-pcode' : 'kw-type-mid';
-      const typeText = e.id_type === 'pcode' ? 'Pcode' : 'MID';
       return `<tr id="kw-row-${i}" class="${e.checked?'kw-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="kwToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#0277bd;cursor:pointer;"></td>
-        <td><span class="kw-type-badge ${typeCls}">${typeText}</span></td>
         <td>
           <div class="kw-td-id">${kwEsc(e.id)}</div>
-          ${e.name?`<div class="kw-td-name">${kwEsc(e.name)}</div>`:''}
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
         <td><div class="kw-td-kw" title="${kwEsc(e.keywords)}">${kwEsc(e.keywords)}</div></td>
@@ -1219,7 +1186,7 @@ window.closeKwModal = function() {
     const selected = checked.filter(e => e.status !== 'success');
     const skipped  = checked.length - selected.length;
     if (!selected.length) { alert('선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)'); return; }
-    const summary = selected.map(e => `  · [${e.id_type.toUpperCase()}] ${e.id}${e.name?' ('+e.name+')':''}`).join('\n');
+    const summary = selected.map(e => `  · ${e.id}`).join('\n');
     if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?\n\n${summary}\n\n총 ${selected.length}건${skipped ? ` (완료된 ${skipped}건은 건너뜀)` : ''}`)) return;
 
     window.kwRunning = true;
@@ -1227,7 +1194,7 @@ window.closeKwModal = function() {
     if (kwCloseBtn) { kwCloseBtn.disabled = true; kwCloseBtn.style.opacity = '0.3'; kwCloseBtn.style.cursor = 'not-allowed'; }
     document.getElementById('kw-btn-run').disabled = true;
     document.getElementById('kw-prog-wrap').style.display = 'block';
-    const payload = selected.map(e => ({ id: e.id, id_type: e.id_type, name: e.name, keywords: e.keywords, memo: e.memo || '' }));
+    const payload = selected.map(e => ({ id: e.id, id_type: e.id_type, keywords: e.keywords, memo: e.memo || '' }));
     selected.forEach(e => { e.status = 'running'; e.result = ''; });
     kwRender();
     kwLog(`▶ 시작 — ${selected.length}개 캠페인${skipped ? ` (완료 ${skipped}건 건너뜀)` : ''}`, 'info');
@@ -1263,10 +1230,10 @@ window.closeKwModal = function() {
               entry.result = r.message;
               if (r.success) {
                 entry.status = 'success'; successCnt++;
-                kwLog(`✅ [${(r.id_type||'').toUpperCase()}] ${r.id}${r.name?' ('+r.name+')':''} — ${r.message}`, 'success');
+                kwLog(`✅ ${r.id} — ${r.message}`, 'success');
               } else {
                 entry.status = 'fail'; failCnt++;
-                kwLog(`❌ [${(r.id_type||'').toUpperCase()}] ${r.id}${r.name?' ('+r.name+')':''} — ${r.message}`, 'fail');
+                kwLog(`❌ ${r.id} — ${r.message}`, 'fail');
               }
             }
             processed++;
@@ -1317,19 +1284,17 @@ window.closeKwModal = function() {
           let added = 0, skipped = 0;
           for (let r = start; r < rows.length; r++) {
             const id       = String(rows[r][0] || '').trim();
-            const name     = String(rows[r][1] || '').trim();
-            const keywords = String(rows[r][2] || '').trim();
-            const memo     = String(rows[r][3] || '').trim();
+            const keywords = String(rows[r][1] || '').trim();
+            const memo     = String(rows[r][2] || '').trim();
             if (!id || !keywords) { skipped++; continue; }
             if (kwEntries.some(e => e.id === id)) { skipped++; continue; }
-            const id_type = kwDetectIdType(id);
-            kwEntries.push({ id, id_type, name, keywords, memo, status: 'ready', result: '' });
+            kwEntries.push({ id, id_type: 'mid', keywords, memo, status: 'ready', result: '' });
             added++;
           }
           kwSave(); kwRender();
           document.getElementById('kw-file').value = '';
           if (added > 0) kwLog(`📊 엑셀 가져오기: ${added}개 추가${skipped?', '+skipped+'개 건너뜀':''}`, 'info');
-          else           kwLog('⚠️ 추가된 항목 없음 — Pcode/MID 또는 키워드가 비어있거나 중복', 'warn');
+          else           kwLog('⚠️ 추가된 항목 없음 — MID 또는 키워드가 비어있거나 중복', 'warn');
         } catch(err) { kwLog(`❌ 엑셀 읽기 실패: ${err.message}`, 'fail'); }
       };
       reader.readAsArrayBuffer(file);
@@ -1376,7 +1341,7 @@ window.closeKwModal = function() {
       kwEntries = data.map(e => ({
         ...e,
         id:      e.id      || e.pcode || '',
-        id_type: e.id_type || (e.pcode ? 'pcode' : 'mid'),
+        id_type: 'mid',
         memo:    e.memo    || '',
         status:  'ready',
         result:  '',
