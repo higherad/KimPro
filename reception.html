@@ -989,7 +989,11 @@ import HA from './store.js';
             <label>메모 (선택)</label>
             <input type="text" id="kw-memo" placeholder="비우면 오늘 날짜 자동 입력">
           </div>
-          <button class="kw-btn-add" onclick="kwAddEntry()">➕ 추가</button>
+          <div style="display:flex;gap:8px;">
+            <button class="kw-btn-add" style="flex:1;" onclick="kwAddEntry()">➕ 추가</button>
+            <button class="kw-btn-add" style="flex:1;background:#0369a1;" onclick="kwLoadFromList()">📋 불러오기</button>
+          </div>
+          <div class="kw-hint" style="margin-top:6px;">리스트에서 체크한 항목을 위 키워드/메모로 일괄 추가</div>
           <hr class="kw-divider">
           <div class="kw-sec-lbl">📂 엑셀 등록</div>
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
@@ -1231,6 +1235,7 @@ window.closeKwModal = function() {
               if (r.success) {
                 entry.status = 'success'; successCnt++;
                 kwLog(`✅ ${r.id} — ${r.message}`, 'success');
+                onKwEntrySuccess(entry.id, entry.keywords).catch(err => console.error('onKwEntrySuccess 오류:', err));
               } else {
                 entry.status = 'fail'; failCnt++;
                 kwLog(`❌ ${r.id} — ${r.message}`, 'fail');
@@ -1311,6 +1316,54 @@ window.closeKwModal = function() {
       if (e.dataTransfer.files[0]) window.kwHandleExcel(e.dataTransfer.files[0]);
     });
   })();
+
+  // 메인 테이블 체크 항목을 키워드 변경 목록으로 일괄 삽입 (현재 입력된 키워드/메모 적용)
+  window.kwLoadFromList = function() {
+    const keywords = document.getElementById('kw-keywords').value.trim();
+    const memo     = document.getElementById('kw-memo').value.trim();
+    if (!keywords) { alert('불러오기 전에 적용할 키워드를 입력해주세요.'); return; }
+    const allSlotsData = window.getAllSlots ? window.getAllSlots() : [];
+    const checkedKeys = new Set(
+      [...document.querySelectorAll('.row-check:checked')].map(el => el.dataset.key)
+    );
+    if (!checkedKeys.size) {
+      kwLog('⚠️ 리스트에서 체크된 항목이 없습니다.', 'warn');
+      return;
+    }
+    const existing = new Set(kwEntries.map(e => e.id));
+    let added = 0, skipped = 0;
+    allSlotsData
+      .filter(s => checkedKeys.has(s._key) && s.status === 'active')
+      .forEach(s => {
+        const mid = (s.mid || '').trim();
+        if (!mid) return;
+        if (existing.has(mid)) { skipped++; return; }
+        kwEntries.push({ id: mid, id_type: 'mid', keywords, memo, status: 'ready', result: '' });
+        existing.add(mid);
+        added++;
+      });
+    kwSave();
+    kwRender();
+    kwLog(
+      added
+        ? `📋 불러오기: ${added}개 추가${skipped ? ', ' + skipped + '개 중복 건너뜀' : ''}`
+        : '⚠️ 추가된 항목 없음 (중복)',
+      added ? 'info' : 'warn'
+    );
+  };
+
+  // 키워드 변경 성공 시 해당 MID의 슬롯 검색키워드를 변경된 값으로 동기화
+  async function onKwEntrySuccess(mid, keywords) {
+    if (!window.HA) return;
+    try {
+      const slots   = await window.HA.getSlots();
+      const targets = slots.filter(s => s.mid === mid && s.status !== 'ended' && s.searchKeyword !== keywords);
+      for (const s of targets) {
+        await window.HA.updateSlot(s._key, { searchKeyword: keywords });
+      }
+      if (targets.length && window.renderReceipts) window.renderReceipts(false, true);
+    } catch(e) { console.error('onKwEntrySuccess 오류:', e); }
+  }
 
   // 서버 상태 확인
   (async function() {
