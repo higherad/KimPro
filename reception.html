@@ -1333,9 +1333,10 @@ window.closeKwModal = function() {
       .forEach(s => {
         const mid      = (s.mid || '').trim();
         const keywords = (s.searchKeyword || '').trim();
+        const memo     = (s.memo || '').trim();
         if (!mid || !keywords) { skipped++; return; }
         if (existing.has(mid)) { skipped++; return; }
-        kwEntries.push({ id: mid, id_type: 'mid', keywords, memo: '', status: 'ready', result: '' });
+        kwEntries.push({ id: mid, id_type: 'mid', keywords, memo, status: 'ready', result: '' });
         existing.add(mid);
         added++;
       });
