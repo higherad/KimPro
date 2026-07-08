@@ -4272,8 +4272,28 @@ window.closeUexModal = function() {
       return;
     }
 
+    // 유효성 검사 — 유입플 키워드 미입력
+    pendingRows.forEach(r => {
+      if (!r.workKw) {
+        r._kwFail = true;
+        if (r._statusTd) r._statusTd.innerHTML = '<span style="color:var(--danger);" title="유입플 키워드 미입력">❌ 키워드 미입력</span>';
+      }
+    });
+    const validRows = pendingRows.filter(r => !r._kwFail);
+
+    if (!validRows.length) {
+      subEl.innerHTML = '<span style="color:var(--danger);font-weight:600;">전체 유효성 검사 실패 (키워드 미입력)</span>';
+      applyBtn.disabled = true; applyBtn.textContent = '❌ 실패'; applyBtn.style.background = '#b91c1c'; applyBtn.style.cursor = 'default';
+      if (gate) {
+        gate.fixedKeys = new Set(alreadyRows.map(r => r._slotKey).filter(Boolean));
+        await gate.tryApprove();
+      }
+      closeBtn.disabled = false; closeBtn.onclick = () => overlay.remove();
+      return;
+    }
+
     const missionByKey = new Map();
-    for (const r of pendingRows) {
+    for (const r of validRows) {
       const el = overlay.querySelector(`.ag-mission-input[data-key="${CSS.escape(r._slotKey||'')}"]`);
       const val = el?.value;
       if (val === '' || val === null || val === undefined) {
@@ -4292,19 +4312,19 @@ window.closeUexModal = function() {
     let result;
     try {
       result = await callBizfitProxy('/youpfl-upload', {
-        rows: pendingRows.map(r => ({ rankKw: r.rankKw, workKw: r.workKw, placeId: r.placeId, target: r.target, days: r.days, mission: missionByKey.get(r._slotKey), ikil: calcIkil(r.startDate) })),
+        rows: validRows.map(r => ({ rankKw: r.rankKw, workKw: r.workKw, placeId: r.placeId, target: r.target, days: r.days, mission: missionByKey.get(r._slotKey), ikil: calcIkil(r.startDate) })),
       });
     } catch(e) {
       result = { success: false, message: '서버 호출 실패: ' + e.message };
     }
 
     if (result.success) {
-      pendingRows.forEach(r => { if (r._statusTd) r._statusTd.innerHTML = '<span style="color:var(--accent);">✅ 완료</span>'; });
+      validRows.forEach(r => { if (r._statusTd) r._statusTd.innerHTML = '<span style="color:var(--accent);">✅ 완료</span>'; });
       subEl.innerHTML = `<span style="color:var(--accent);font-weight:600;">✅ ${escProd(result.message||'업로드 완료')}</span>`;
-      await recordYupflSettlement(pendingRows, missionByKey);
+      await recordYupflSettlement(validRows, missionByKey);
       const slotMap = new Map(allSlots.map(s => [s._key, s]));
-      const pendingSlotKeys = pendingRows.map(r => r._slotKey).filter(Boolean);
-      const allDoneSlotKeys = rows.map(r => r._slotKey).filter(Boolean); // already + 이번에 성공한 것 전부
+      const pendingSlotKeys = validRows.map(r => r._slotKey).filter(Boolean);
+      const allDoneSlotKeys = rows.filter(r => !r._kwFail).map(r => r._slotKey).filter(Boolean); // already + 이번에 성공한 것 전부
       if (gate) {
         gate.fixedKeys = new Set(allDoneSlotKeys);
         if (pendingSlotKeys.length) {
@@ -4323,7 +4343,7 @@ window.closeUexModal = function() {
       // 일반 탭 잠금 해제 — 이 탭을 먼저 끝낸 뒤 계속 열어둔 채로 일반도 마저 접수할 수 있어야 함
       if (normalBtn) normalBtn.disabled = false;
     } else {
-      pendingRows.forEach(r => { if (r._statusTd) r._statusTd.innerHTML = `<span style="color:var(--danger);" title="${escProd(result.message||'')}">❌ 실패</span>`; });
+      validRows.forEach(r => { if (r._statusTd) r._statusTd.innerHTML = `<span style="color:var(--danger);" title="${escProd(result.message||'')}">❌ 실패</span>`; });
       subEl.innerHTML = `<span style="color:var(--danger);font-weight:600;">❌ ${escProd(result.message||'업로드 실패')}</span>`;
       applyBtn.textContent = '❌ 실패'; applyBtn.style.background = '#b91c1c'; applyBtn.style.cursor = 'default';
       window.bizfitSubmitting = false;
@@ -4457,6 +4477,10 @@ window.closeUexModal = function() {
         if (kwCount > 50) {
           r._kwFail = true;
           if (r._statusTd) r._statusTd.innerHTML = '<span style="color:var(--danger);" title="검색키워드 50개 초과">❌ 키워드 초과</span>';
+          failTotal++;
+        } else if (kwCount === 0) {
+          r._kwFail = true;
+          if (r._statusTd) r._statusTd.innerHTML = '<span style="color:var(--danger);" title="검색키워드 미입력">❌ 키워드 미입력</span>';
           failTotal++;
         } else if ((r.일목표||0) < 10) {
           r._kwFail = true;
