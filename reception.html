@@ -867,23 +867,29 @@ document.addEventListener('keydown', function(e) {
       return;
     }
     const existing = new Set(bsEntries.map(e => e.mid));
-    let added = 0, skipped = 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let added = 0, skipped = 0, futureSkipped = 0;
     allSlotsData
       .filter(s => checkedKeys.has(s._key) && s.status === 'active')
       .forEach(s => {
         const mid = (s.mid || '').trim();
         if (!mid) return;
         if (existing.has(mid)) { skipped++; return; }
+        // 시작일이 아직 안 된 캠페인은 강제종료 대상에서 제외 (미래 시작일 강제종료는 의미 없음)
+        if (s.startDate && s.startDate > todayStr) { futureSkipped++; return; }
         bsEntries.push({ mid, memo: '', do_pause: bsPause, do_force: bsForce, status: 'ready', result: '' });
         existing.add(mid);
         added++;
       });
     if (window.bsFbSave) window.bsFbSave(bsEntries);
     bsRender();
+    const parts = [];
+    if (skipped) parts.push(skipped + '개 중복 건너뜀');
+    if (futureSkipped) parts.push(futureSkipped + '개 시작일 미도래 제외');
     bsLog(
       added
-        ? `📋 불러오기: ${added}개 추가${skipped ? ', ' + skipped + '개 중복 건너뜀' : ''}`
-        : '⚠️ 추가된 항목 없음 (중복)',
+        ? `📋 불러오기: ${added}개 추가${parts.length ? ', ' + parts.join(', ') : ''}`
+        : `⚠️ 추가된 항목 없음${parts.length ? ' (' + parts.join(', ') + ')' : ''}`,
       added ? 'info' : 'warn'
     );
   };
