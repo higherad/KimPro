@@ -4521,11 +4521,19 @@ window.closeUexModal = function() {
           .filter(([, rs]) => rs.every(r => r._normalSubmitted || r._rowOk === true))
           .map(([k]) => k);
         if (!okSlots.length) return;
-        if (gate) {
-          okSlots.forEach(k => approvedKeys.add(k));
-        } else {
-          await Promise.all(okSlots.map(k => HA.approveSlot(k)));
-          okSlots.forEach(k => { const s = slotMap.get(k); if (s) s.status = 'active'; });
+        // 재접수(isRequeue) 슬롯은 유입플을 실제로 접수하지 않고 배분값 확인용으로만 켜두는 경우가 있어,
+        // 일반 상품만 전부 성공하면 유입플 완료 여부와 상관없이 즉시 승인한다 (게이트 우회).
+        const directApprove = [];
+        const gateDeferred  = [];
+        okSlots.forEach(k => {
+          const s = slotMap.get(k);
+          if (gate && !(s && s.isRequeue)) gateDeferred.push(k);
+          else directApprove.push(k);
+        });
+        gateDeferred.forEach(k => approvedKeys.add(k));
+        if (directApprove.length) {
+          await Promise.all(directApprove.map(k => HA.approveSlot(k)));
+          directApprove.forEach(k => { const s = slotMap.get(k); if (s) s.status = 'active'; });
         }
       }
 
