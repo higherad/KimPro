@@ -2165,8 +2165,8 @@ window.closeUexModal = function() {
       return `<div style="display:flex;flex-direction:column;gap:2px;align-items:flex-start">${stMap.paused}${stMap.force_stopped}</div>`;
     }
     if (s.isRequeue && s.status !== 'requeue') {
-      const classMap = { accepted: 's-accepted', active: 's-active', pending: 's-pending' };
-      const labelMap = { accepted: '접수',        active: '승인',     pending: '대기' };
+      const classMap = { accepted: 's-accepted', active: 's-active', pending: 's-pending', ended: 's-ended', expired: 's-ended', force_stopped: 's-force-stopped', paused: 's-paused' };
+      const labelMap = { accepted: '접수',        active: '승인',     pending: '대기',     ended: '종료',     expired: '종료',     force_stopped: '강제종료',        paused: '임시중단' };
       const cls   = classMap[s.status] || 's-pending';
       const label = labelMap[s.status] || s.status;
       return `<span class="status-badge ${cls}">재접수 | ${label}</span>`;
