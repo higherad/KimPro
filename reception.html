@@ -819,17 +819,27 @@ document.addEventListener('keydown', function(e) {
         const originalEndDate = s.endDate || '';
         let patch = {};
         if (didForce && didPause) {
-          patch = { status: 'force_stopped', paused: true, endDate: todayStr, origEndDate: originalEndDate };
+          patch = { status: 'force_stopped', paused: true, origEndDate: originalEndDate, forceStoppedAt: todayStr };
         } else if (didForce) {
-          patch = { status: 'force_stopped', endDate: todayStr, origEndDate: originalEndDate };
+          patch = { status: 'force_stopped', origEndDate: originalEndDate, forceStoppedAt: todayStr };
         } else if (didPause) {
           patch = { status: 'paused' };
         }
+        // endDate는 여기서 바로 안 바꿈 — 당일 중에는 원래 종료일 그대로 유지해서 같은 캠페인을
+        // 다시 강제종료해도(재시도 등) remainDays 계산이 틀어지지 않게 함. 실제 종료일 반영은
+        // 다음날 자동만료(renderReceipts 폴백/서버 /expire-slots)에서 forceStoppedAt 기준으로 처리.
         // 강제종료 즉시 재접수 슬롯 생성 (다음날까지 기다리지 않음)
         if (didForce && originalEndDate) {
           const origEnd    = new Date(originalEndDate);
           const remainDays = Math.round((origEnd - new Date(tomorrowStr)) / 86400000) + 1;
-          if (remainDays >= 1) {
+          // 동일 기간 재접수 슬롯이 이미 살아있으면 중복 생성 안 함 (플래그 대신 실제 존재 여부로 체크 —
+          // 생성된 재접수 슬롯을 삭제한 뒤 재실행하는 경우엔 다시 생성돼야 하므로 requeueCreated 플래그만으론 부족).
+          // self-exclusion을 두지 않아, 아직 시작 안 한(시작일=내일) 대상을 또 강제종료하면
+          // 자기 자신과 동일한 슬롯을 만들려는 시도도 함께 차단됨.
+          const alreadyExists = slots.some(x =>
+            x.mid === s.mid && x.startDate === tomorrowStr && x.endDate === originalEndDate && x.status !== 'ended'
+          );
+          if (remainDays >= 1 && !alreadyExists) {
             const newSlot = await window.HA.addSlot({
               agencyId:      s.agencyId      || '',
               userId:        s.userId        || '',
@@ -2325,13 +2335,17 @@ window.closeUexModal = function() {
 
       // ── 종료일 지난 active 캠페인 자동 만료 처리 ──────────────
       const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
-      const toExpire = allSlots.filter(s =>
-        (s.status === 'active' || s.status === 'force_stopped' || s.status === 'requeue' || s.status === 'paused') && s.endDate && s.endDate < todayStr
-      );
+      // force_stopped는 endDate가 아니라 forceStoppedAt(강제종료한 날) 기준으로 다음날 만료 —
+      // 당일 중엔 endDate를 안 건드리므로 이 필드로 판단해야 함.
+      const toExpire = allSlots.filter(s => {
+        if (s.status === 'force_stopped') return !!s.forceStoppedAt && s.forceStoppedAt < todayStr;
+        return (s.status === 'active' || s.status === 'requeue' || s.status === 'paused') && s.endDate && s.endDate < todayStr;
+      });
       if (toExpire.length) {
         await Promise.all(toExpire.map(async s => {
           const wasForceStop = s.status === 'force_stopped';
-          await HA.updateSlot(s._key, { status: 'ended' });
+          const endPatch = wasForceStop ? { status: 'ended', endDate: s.forceStoppedAt } : { status: 'ended' };
+          await HA.updateSlot(s._key, endPatch);
           s.status = 'ended';
           if (wasForceStop && s.origEndDate && !s.requeueCreated) {
             const origEnd    = new Date(s.origEndDate);
