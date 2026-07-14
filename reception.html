@@ -43,8 +43,51 @@
     <button class="header-nav-btn" onclick="openChargeModal()">⚡ 충전하기</button>
     <button class="header-nav-btn" onclick="openAccountModal()">🔑 계정 설정</button>
     <button class="header-nav-btn" onclick="openYupflSettleModal()">💳 유입플 정산</button>
+    <button class="header-nav-btn" id="backlink-rank-btn" onclick="downloadBacklinkRank()">🔗 백링크 순위</button>
   </nav>
 </header>
+
+<script>
+async function downloadBacklinkRank() {
+  const btn = document.getElementById('backlink-rank-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '다운로드 중...';
+
+  try {
+    const res = await fetch('https://kimpro-premium-938928195180.asia-northeast3.run.app/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memo: '1test', missions: [2, 3, 9] }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `요청 실패 (${res.status})`);
+    }
+
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `백링크_통합_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(`다운로드 실패: ${e.message}`);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+</script>
 
 <div class="page-wrap">
 <div id="receipt-page">
