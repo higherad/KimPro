@@ -52,7 +52,7 @@ async function downloadBacklinkRank() {
   const btn = document.getElementById('backlink-rank-btn');
   const original = btn.textContent;
   btn.disabled = true;
-  btn.textContent = '다운로드 중...';
+  btn.textContent = '🔗 다운로드 중...';
 
   try {
     const res = await fetch('https://kimpro-premium-938928195180.asia-northeast3.run.app/merge', {
