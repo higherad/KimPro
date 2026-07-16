@@ -2325,7 +2325,7 @@ window.closeUexModal = function() {
         if (!_allFilterLabels(cached).includes(gradeFilter)) return false;
       }
       if (kw && ![s.agencyId,s.storeName,s.mid].some(v=>(v||'').toLowerCase().includes(kw))) return false;
-      const slotDate = s.createdAt ? (() => { const d = new Date(s.createdAt); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : '';
+      const slotDate = s.createdAt ? uexFmt(new Date(s.createdAt)) : '';
       if (dateFrom && slotDate !== dateFrom) return false;
       if (HA.getCurrentUser()?.role === 'guest') {
         if (!s.createdAt || new Date(s.createdAt).getMonth() + 1 !== 6) return false;
@@ -2377,7 +2377,7 @@ window.closeUexModal = function() {
       _slotsLoaded = true;
 
       // ── 종료일 지난 active 캠페인 자동 만료 처리 ──────────────
-      const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+      const todayStr = uexFmt(new Date());
       // force_stopped는 endDate가 아니라 forceStoppedAt(강제종료한 날) 기준으로 다음날 만료 —
       // 당일 중엔 endDate를 안 건드리므로 이 필드로 판단해야 함.
       const toExpire = allSlots.filter(s => {
@@ -2447,16 +2447,7 @@ window.closeUexModal = function() {
         <tr>
           <td><input type="checkbox" class="row-check" data-key="${s._key}"></td>
           <td style="color:var(--text2)">${all.length - start - i}</td>
-          <td style="color:var(--text2)">${
-            (() => {
-              if (!s.createdAt) return '-';
-              const d = new Date(s.createdAt);
-              const yyyy = d.getFullYear();
-              const mo = String(d.getMonth()+1).padStart(2,'0');
-              const dd = String(d.getDate()).padStart(2,'0');
-              return `${yyyy}-${mo}-${dd}`;
-            })()
-          }</td>
+          <td style="color:var(--text2)">${s.createdAt ? uexFmt(new Date(s.createdAt)) : '-'}</td>
           <td style="font-weight:600">${s.agencyId||'-'}</td>
           <td>${['pending','accepted','active','paused','force_stopped','requeue'].includes(s.status)
             ? `<span id="grade-${s._key}" style="color:#94a3b8;font-size:11px">···</span>`
@@ -2542,15 +2533,19 @@ window.closeUexModal = function() {
     return [...document.querySelectorAll('.row-check:checked')].map(c => c.dataset.key);
   }
 
+  function closeModalAndRefresh() {
+    const overlay = document.querySelector('.modal-overlay');
+    if (overlay) overlay.remove();
+    _detailOpen = false;
+    renderReceipts(false);
+  }
+
   // ── 승인 ─────────────────────────────────────────────────
   window.approveOne = async function(key) {
     await HA.approveSlot(key);
     const idx = allSlots.findIndex(x => x._key === key);
     if (idx !== -1) allSlots[idx].status = 'active';
-    const overlay = document.querySelector('.modal-overlay');
-    if (overlay) overlay.remove();
-    _detailOpen = false;
-    renderReceipts(false);
+    closeModalAndRefresh();
   };
 
 
@@ -2559,10 +2554,7 @@ window.closeUexModal = function() {
     await HA.updateSlot(key, { status: 'accepted' });
     const idx = allSlots.findIndex(x => x._key === key);
     if (idx !== -1) allSlots[idx].status = 'accepted';
-    const overlay = document.querySelector('.modal-overlay');
-    if (overlay) overlay.remove();
-    _detailOpen = false;
-    renderReceipts(false);
+    closeModalAndRefresh();
   };
 
   window.acceptFromDetail = async function(key) {
@@ -2570,9 +2562,7 @@ window.closeUexModal = function() {
     await HA.updateSlot(key, { status: 'accepted' });
     const idx = allSlots.findIndex(x => x._key === key);
     if (idx !== -1) allSlots[idx].status = 'accepted';
-    document.querySelector('.modal-overlay').remove();
-    _detailOpen = false;
-    renderReceipts(false);
+    closeModalAndRefresh();
   };
 
   // ── 슬롯 삭제 (임시) ─────────────────────────────────────
@@ -2592,10 +2582,7 @@ window.closeUexModal = function() {
     await HA.updateSlot(key, { status: newStatus });
     const idx = allSlots.findIndex(x => x._key === key);
     if (idx !== -1) allSlots[idx].status = newStatus;
-    const overlay = document.querySelector('.modal-overlay');
-    if (overlay) overlay.remove();
-    _detailOpen = false;
-    renderReceipts(false);
+    closeModalAndRefresh();
   };
 
   // ── 상세 보기 ─────────────────────────────────────────────
@@ -2795,7 +2782,7 @@ window.closeUexModal = function() {
           const kwStr  = s.searchKeyword || '';
           const kwCount = kwStr.split(',').map(k => k.trim()).filter(k => k).length;
           const safeKw = kwStr.replace(/'/g, "\\'");
-          const dateStr = s.createdAt ? (() => { const d = new Date(s.createdAt); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : '';
+          const dateStr = s.createdAt ? uexFmt(new Date(s.createdAt)) : '';
           return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
               <div style="display:flex;align-items:center;gap:6px;">
@@ -2970,9 +2957,7 @@ window.closeUexModal = function() {
 
   window.closeDetailModal = async function(key) {
     await saveDetailFields(key);
-    document.querySelector('.modal-overlay').remove();
-    _detailOpen = false;
-    renderReceipts(false);
+    closeModalAndRefresh();
   };
 
   // ── 수정 ─────────────────────────────────────────────────
@@ -3188,6 +3173,10 @@ window.closeUexModal = function() {
     g.state = prodSnapshot();
     saveProdSettings(); renderProdGroups();
   }
+  function persistAndRenderProds() {
+    if(activeProdGroupId) updateActiveProdGroup(); else { saveProdDefault(); saveProdSettings(); }
+    renderPS();
+  }
   function nextProdColor() {
     const usedCustom = new Set(prods.filter(p => p.id.startsWith('u')).map(p => p.color));
     return PROD_COLORS.find(c => !usedCustom.has(c)) || PROD_COLORS[prods.filter(p => p.id.startsWith('u')).length % PROD_COLORS.length];
@@ -3210,8 +3199,7 @@ window.closeUexModal = function() {
     const ver = document.getElementById('ap-ver').value.trim();
     prods.push({id:'u'+Date.now(),name,color:_apColor,active:false,ver:ver||'ver.5.0/3.2',ratio:0,kwPct:0});
     window.closeAddProdModal();
-    if(activeProdGroupId) updateActiveProdGroup(); else { saveProdDefault(); saveProdSettings(); }
-    renderPS();
+    persistAndRenderProds();
   };
 
   function prodDisplayName(p) {
@@ -3248,8 +3236,7 @@ window.closeUexModal = function() {
       if (other) other.active = false;
     }
     rebalanceProdActive('ratio'); rebalanceProdActive('kwPct');
-    if(activeProdGroupId) updateActiveProdGroup(); else { saveProdDefault(); saveProdSettings(); }
-    renderPS();
+    persistAndRenderProds();
   };
   function rebalanceProdActive(field) {
     const active = ap().filter(p => p.autoBalance !== false);
@@ -3375,6 +3362,9 @@ window.closeUexModal = function() {
     wrap.insertAdjacentHTML('beforeend', (cur && cur.splitProduct) ? splitRuleRowHtml(null) : missionRuleRowHtml(null));
     updateProdModalNotes();
   };
+  function sumProdInputs(actives, prefix) {
+    return Math.round(actives.reduce((s,q)=>{ const el=document.getElementById(`${prefix}${q.id}`); return s+(el?parseFloat(el.value)||0:0); },0)*10)/10;
+  }
   window.updateProdModalNotes = function() {
     const cur = _prodModalId ? prods.find(x => x.id === _prodModalId) : null;
     if (!cur) return;
@@ -3408,8 +3398,7 @@ window.closeUexModal = function() {
       return;
     }
     const actives = ap().filter(q => !q.fixedAlloc);
-    const sumInputs = prefix => Math.round(actives.reduce((s,q)=>{ const el=document.getElementById(`${prefix}${q.id}`); return s+(el?parseFloat(el.value)||0:0); },0)*10)/10;
-    const kwR = sumInputs('pm-kwpct-'), ratR = sumInputs('pm-ratio-');
+    const kwR = sumProdInputs(actives, 'pm-kwpct-'), ratR = sumProdInputs(actives, 'pm-ratio-');
     const kwNote = document.getElementById('pm-kw-note');
     const ratNote = document.getElementById('pm-ratio-note');
     if(kwNote)  { kwNote.textContent=`합계: ${kwR}`;   kwNote.className='ratio-note '+(kwR===10||kwR===0?'ok':'ng'); }
@@ -3426,8 +3415,7 @@ window.closeUexModal = function() {
     if (!p.fixedAlloc) {
       const actives = ap().filter(q => !q.fixedAlloc);
       if(actives.length) {
-        const sumInputs = prefix => Math.round(actives.reduce((s,q)=>{ const el=document.getElementById(`${prefix}${q.id}`); return s+(el?parseFloat(el.value)||0:0); },0)*10)/10;
-        const kwR = sumInputs('pm-kwpct-'), ratR = sumInputs('pm-ratio-');
+        const kwR = sumProdInputs(actives, 'pm-kwpct-'), ratR = sumProdInputs(actives, 'pm-ratio-');
         if(kwR!==10 && kwR!==0){ alert(`키워드 배분 합계는 10 또는 모두 0이어야 합니다. (현재: ${kwR})`); return; }
         if(ratR!==10){ alert(`일 목표 배분 합계는 10이어야 합니다. (현재: ${ratR})`); return; }
         actives.forEach(q => {
@@ -3480,8 +3468,7 @@ window.closeUexModal = function() {
     }
     prodGroups.forEach(g => { const gs=g.state.find(s=>s.id===p.id); if(gs){gs.name=p.name;gs.ver=p.ver;} });
     window.closeProdModal();
-    if(activeProdGroupId) updateActiveProdGroup(); else { saveProdDefault(); saveProdSettings(); }
-    renderPS();
+    persistAndRenderProds();
   };
   window.deleteProdModal = function() {
     if (!_prodModalId || FIXED_PROD_IDS.has(_prodModalId)) return;
@@ -3491,8 +3478,7 @@ window.closeUexModal = function() {
     window.closeProdModal();
     prods = prods.filter(x => x.id !== id);
     prodGroups.forEach(g => { g.state = g.state.filter(s => s.id !== id); });
-    if(activeProdGroupId) updateActiveProdGroup(); else { saveProdDefault(); saveProdSettings(); }
-    renderPS();
+    persistAndRenderProds();
   };
 
   // ── 분배 로직 ─────────────────────────────────────────────────
@@ -3720,29 +3706,6 @@ window.closeUexModal = function() {
     window.XLSX.utils.book_append_sheet(wb, ws, sheetName || prod.name || '유입플');
   }
 
-  function buildProdSheet(wb, f, prod) {
-    const ws = {};
-    const AP = ap();
-    sc(ws, 0, 0, prod.ver||'', {font:{bold:true,color:{rgb:'DC2626'}}});
-    const headers = ['상품등급명','업체명','URL','MID','순위키워드','일 목표','일 수','예약일','검색키워드'];
-    headers.forEach((h, ci) => { sc(ws, 1, ci, h, {font:{bold:true,color:{rgb:'FFFFFF'}}, fill:h==='검색키워드'?'DC2626':'1F2937'}); });
-    f.forEach((r, ri) => {
-      const alloc   = allocate(AP.slice(), r.dailyTarget||0, r.yupflKeyword, r.splitKeywords);
-      const pp      = alloc[prod.id] ?? 0;
-      const daysVal = prod.daysMultiplied ? pp*(r.days||0) : (r.days||0);
-      const kw      = kwForProd(r.searchKeyword||'', prod);
-      const row     = [prod.name,r.storeName||'',r.url||'',r.mid||'',r.rankKeyword||'',pp,daysVal,null,kw];
-      row.forEach((v, ci) => {
-        if(ci===7){ scDate(ws, 2+ri, 7, r.startDate); return; }
-        sc(ws, 2+ri, ci, v, { align:[0,1,2,4,8].includes(ci)?'left':'center' });
-      });
-    });
-    const lr = Math.max(1, f.length+1);
-    ws['!ref']  = window.XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:lr,c:8}});
-    ws['!cols'] = [{wch:10},{wch:22},{wch:44},{wch:14},{wch:18},{wch:8},{wch:6},{wch:13},{wch:52}];
-    window.XLSX.utils.book_append_sheet(wb, ws, prod.name);
-  }
-
   function setProg(show, pct, lbl) {
     const wrap = document.getElementById('dl-prog-wrap'); if(!wrap) return;
     wrap.style.display = show ? 'block' : 'none';
@@ -3761,7 +3724,7 @@ window.closeUexModal = function() {
       const wb = XLSX.utils.book_new();
       const header = ['접수일시','대행사','업체명','URL','MID','순위키워드','일 수','시작일','일 목표','검색키워드'];
       const rows = filtered.map(s => [
-        s.createdAt ? (() => { const d = new Date(s.createdAt); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : '',
+        s.createdAt ? uexFmt(new Date(s.createdAt)) : '',
         s.agencyId||'', s.storeName||'', s.url||'', s.mid||'',
         s.rankKeyword||'', s.days||'', s.startDate||'', s.dailyTarget||'', s.searchKeyword||'',
       ]);
@@ -4794,8 +4757,7 @@ window.closeUexModal = function() {
   // ════════════════════════════════════════════════════════
 
   function todayDateKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return uexFmt(new Date());
   }
 
   window.openYupflSettleModal = async function() {
@@ -4820,12 +4782,9 @@ window.closeUexModal = function() {
   function fmtSettleTime(iso) {
     if (!iso) return '-';
     const d = new Date(iso);
-    const yyyy = d.getFullYear();
-    const mo = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
     const hh = String(d.getHours()).padStart(2,'0');
     const mi = String(d.getMinutes()).padStart(2,'0');
-    return `${yyyy}-${mo}-${dd} ${hh}:${mi}`;
+    return `${uexFmt(d)} ${hh}:${mi}`;
   }
 
   function renderYupflSettleToday(entries) {
@@ -5057,8 +5016,6 @@ window.closeUexModal = function() {
     // 유입플 탭 잠금 해제 — 이 탭을 먼저 끝낸 뒤 계속 열어둔 채로 유입플도 마저 접수할 수 있어야 함
     if (youpflBtn) youpflBtn.disabled = false;
   }
-
-  function byGradeCount(rows, name) { return rows.filter(r => r.상품등급명 === name).length; }
 
   // URL에서 파일명 숨김 (reception.html → /)
   if (location.pathname !== '/') history.replaceState(null, '', '/');
