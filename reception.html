@@ -3369,6 +3369,10 @@ window.closeUexModal = function() {
         seenKw.add(kw);
         rules.push({ kw, mission });
       }
+      if (!rules.length) {
+        alert('키워드 배분 규칙을 최소 1개 이상 입력해야 합니다.');
+        return;
+      }
       p.missionRules = rules;
     }
     prodGroups.forEach(g => { const gs=g.state.find(s=>s.id===p.id); if(gs){gs.name=p.name;gs.ver=p.ver;} });
