@@ -3267,7 +3267,6 @@ window.closeUexModal = function() {
               style="display:flex;align-items:center;gap:3px;padding:3px 8px;background:${p.color};color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;">+ 규칙 추가</button>
           </div>
           <div id="pm-mission-rules" style="display:flex;flex-direction:column;gap:6px;"></div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.4;">검색키워드 개수에 맞는 미션 번호를 자동으로 배정합니다. 예: 키워드 5개 → 2번, 키워드 1개 → 9번</div>
         </div>`
       : makeGrid(actives, 'ratio', 'pm-ratio-');
 
@@ -3287,8 +3286,9 @@ window.closeUexModal = function() {
       <span style="font-size:11px;color:var(--text2);white-space:nowrap;">키워드</span>
       <input type="number" min="1" step="1" class="mr-kw" value="${rule?.kw ?? ''}" placeholder="개수"
         style="width:56px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:monospace;outline:none;text-align:center;" />
-      <span style="font-size:11px;color:var(--text2);white-space:nowrap;">개 →</span>
-      <input type="number" min="0" step="1" class="mr-mission" value="${rule?.mission ?? ''}" placeholder="미션"
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap;">개 /</span>
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap;">미션</span>
+      <input type="number" min="0" step="1" class="mr-mission" value="${rule?.mission ?? ''}" placeholder="번호"
         style="width:56px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:monospace;outline:none;text-align:center;" />
       <span style="font-size:11px;color:var(--text2);white-space:nowrap;">번</span>
       <button type="button" onclick="this.closest('.mission-rule-row').remove()" title="규칙 삭제"
