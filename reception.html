@@ -4484,8 +4484,8 @@ window.closeUexModal = function() {
       missionTd.style.cssText = 'text-align:center;white-space:nowrap';
       missionTd.innerHTML = `<input type="number" min="0" class="ag-mission-input" data-key="${escProd(r._slotKey||'')}"
         value="${hasAutoMission ? r.autoMission : ''}" ${r._fixedSubmitted?'disabled':''}
-        ${hasAutoMission ? `title="키워드 ${kwCount}개 규칙으로 자동 배정됨 (수정 가능)"` : ''}
-        style="width:52px;padding:3px 6px;border:1px solid ${hasAutoMission?'#fcd34d':'var(--border)'};border-radius:5px;font-size:12px;font-family:inherit;text-align:center;outline:none;background:${hasAutoMission?'#fffbeb':'white'};">`;
+        ${hasAutoMission ? `title="키워드 ${kwCount}개 규칙으로 자동 배정된 값입니다. 직접 수정할 수 있습니다."` : ''}
+        style="width:52px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:inherit;text-align:center;outline:none;background:white;">`;
       const amountTd = document.createElement('td');
       amountTd.style.cssText = 'text-align:right;white-space:nowrap';
       amountTd.textContent = (r.amount||0).toLocaleString() + '원';
