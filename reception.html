@@ -4406,8 +4406,15 @@ window.closeUexModal = function() {
       fixedKeys:  fixedAlreadyDone.size ? fixedAlreadyDone : null,
       slotMap: new Map(allSlots.map(s => [s._key, s])),
       async tryApprove() {
-        if (this.normalKeys === null || this.fixedKeys === null) return;
-        const keys = [...this.normalKeys].filter(k => this.fixedKeys.has(k));
+        if (this.normalKeys === null) return;
+        // 재접수(isRequeue) 슬롯은 유입플 완료 여부와 무관하게 일반만 끝나면 승인 —
+        // finalizeSlotApprovals()의 즉시승인 우회와 동일한 예외를 여기(재오픈 시점 정합화)에도 적용해야
+        // "일반만 끝난 채 모달을 재오픈만 한 경우"에도 정상적으로 승인 전환됨
+        const keys = [...this.normalKeys].filter(k => {
+          const s = this.slotMap.get(k);
+          if (s && s.isRequeue) return true;
+          return this.fixedKeys && this.fixedKeys.has(k);
+        });
         if (keys.length) {
           // normalDoneProducts/fixedSubmitted는 접수 완료 이력이므로 승인 후에도 계속 보관(삭제하지 않음)
           await Promise.all(keys.map(k => HA.updateSlot(k, { status: 'active' })));
