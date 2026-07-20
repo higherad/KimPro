@@ -1049,6 +1049,14 @@ import HA from './store.js';
       .kw-srv-ok  { background:#d1fae5; color:#065f46; }
       .kw-srv-err { background:#fee2e2; color:#991b1b; }
       .kw-srv-chk { background:#f1f5f9; color:var(--text2); }
+      .kw-switch-wrap { display:flex; align-items:center; gap:6px; }
+      .kw-switch-label { font-size:11px; font-weight:700; color:var(--text2); }
+      .kw-switch { position:relative; display:inline-block; width:34px; height:19px; flex-shrink:0; margin:0; }
+      .kw-switch input { opacity:0; width:0; height:0; }
+      .kw-switch .kw-slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#cbd5e0; transition:.2s; border-radius:20px; }
+      .kw-switch .kw-slider::before { position:absolute; content:""; height:15px; width:15px; left:2px; bottom:2px; background-color:#fff; transition:.2s; border-radius:50%; }
+      .kw-switch input:checked + .kw-slider { background-color:#0277bd; }
+      .kw-switch input:checked + .kw-slider::before { transform:translateX(15px); }
     </style>
 
     <div class="kw-grid">
@@ -1127,6 +1135,13 @@ import HA from './store.js';
       <div class="kw-run-col kw-card">
         <div class="kw-card-head">
           <span class="kw-card-title">⚡ 실행</span>
+          <div class="kw-switch-wrap" title="MID 캠페인 수만큼 키워드 균등 배분">
+            <span class="kw-switch-label">배분</span>
+            <label class="kw-switch">
+              <input type="checkbox" id="kw-distribute-global">
+              <span class="kw-slider"></span>
+            </label>
+          </div>
         </div>
         <div class="kw-card-body">
           <div class="kw-sum-grid">
@@ -1273,18 +1288,19 @@ window.closeKwModal = function() {
     const selected = checked.filter(e => e.status !== 'success');
     const skipped  = checked.length - selected.length;
     if (!selected.length) { alert('선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)'); return; }
+    const distribute = document.getElementById('kw-distribute-global').checked;
     const summary = selected.map(e => `  · ${e.id}`).join('\n');
-    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?\n\n${summary}\n\n총 ${selected.length}건${skipped ? ` (완료된 ${skipped}건은 건너뜀)` : ''}`)) return;
+    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — MID 캠페인 수만큼 키워드 균등 배분)' : ''}\n\n${summary}\n\n총 ${selected.length}건${skipped ? ` (완료된 ${skipped}건은 건너뜀)` : ''}`)) return;
 
     window.kwRunning = true;
     const kwCloseBtn = document.getElementById('kw-close-btn');
     if (kwCloseBtn) { kwCloseBtn.disabled = true; kwCloseBtn.style.opacity = '0.3'; kwCloseBtn.style.cursor = 'not-allowed'; }
     document.getElementById('kw-btn-run').disabled = true;
     document.getElementById('kw-prog-wrap').style.display = 'block';
-    const payload = selected.map(e => ({ id: e.id, id_type: e.id_type, keywords: e.keywords, memo: e.memo || '' }));
+    const payload = selected.map(e => ({ id: e.id, id_type: e.id_type, keywords: e.keywords, memo: e.memo || '', distribute }));
     selected.forEach(e => { e.status = 'running'; e.result = ''; });
     kwRender();
-    kwLog(`▶ 시작 — ${selected.length}개 캠페인${skipped ? ` (완료 ${skipped}건 건너뜀)` : ''}`, 'info');
+    kwLog(`▶ 시작 — ${selected.length}개 캠페인${distribute ? ' (배분 모드)' : ''}${skipped ? ` (완료 ${skipped}건 건너뜀)` : ''}`, 'info');
     document.getElementById('kw-prog-bar').style.width = '10%';
     document.getElementById('kw-prog-txt').textContent = '로그인 중...';
 
