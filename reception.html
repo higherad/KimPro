@@ -1341,8 +1341,8 @@ window.closeKwModal = function() {
                 const slots = window.getAllSlots ? window.getAllSlots() : [];
                 const slot = slots.find(s => s.mid === r.id && s.status === 'change');
                 if (slot) {
-                  // 검색키워드 변경 전 상태가 대기(일반 대기 또는 재접수|대기)였으면 접수로, 그 외(승인 등)면 승인으로 복귀
-                  const target = (slot.preChangeStatus === 'pending' || slot.preChangeStatus === 'requeue') ? 'accepted' : 'active';
+                  // 대기/재접수|대기 → 접수, 접수/재접수|접수 → 접수(그대로), 승인/재접수|승인 → 승인(그대로)
+                  const target = slot.preChangeStatus === 'active' ? 'active' : 'accepted';
                   window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
                   slot.status = target; delete slot.preChangeStatus;
                 }
