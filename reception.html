@@ -1419,20 +1419,13 @@ window.closeKwModal = function() {
     });
   })();
 
-  // 메인 테이블 체크 항목을 키워드 변경 목록으로 일괄 삽입 (상세에 등록된 검색키워드를 그대로 불러옴)
+  // '변경' 상태인 캠페인을 전부 키워드 변경 목록으로 일괄 삽입 (상세에 등록된 검색키워드를 그대로 불러옴)
   window.kwLoadFromList = function() {
     const allSlotsData = window.getAllSlots ? window.getAllSlots() : [];
-    const checkedKeys = new Set(
-      [...document.querySelectorAll('.row-check:checked')].map(el => el.dataset.key)
-    );
-    if (!checkedKeys.size) {
-      kwLog('⚠️ 리스트에서 체크된 항목이 없습니다.', 'warn');
-      return;
-    }
     const existing = new Set(kwEntries.map(e => e.id));
     let added = 0, skipped = 0;
     allSlotsData
-      .filter(s => checkedKeys.has(s._key) && s.status === 'change')
+      .filter(s => s.status === 'change')
       .forEach(s => {
         const mid      = (s.mid || '').trim();
         const keywords = (s.searchKeyword || '').trim();
