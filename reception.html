@@ -2651,6 +2651,7 @@ window.closeUexModal = function() {
     const yupflProd  = prods.find(p => p.id === 'yupfl');
     const splitProd  = prods.find(p => p.id === 'yupfl2');
     const yupflShown = !!yupflProd?.active;
+    const kwChangeLocked = s.status === 'force_stopped' || s.status === 'paused';
     overlay.innerHTML = `
       <div class="modal-box">
         <div class="modal-title">캠페인 상세</div>
@@ -2693,7 +2694,7 @@ window.closeUexModal = function() {
           </label>
           <div style="display:flex;gap:6px;align-items:center;">
             <input type="text" class="detail-kw-input" id="detail-keyword-input" value="${escV(s.searchKeyword)}" placeholder="키워드를 입력해주세요" oninput="updateKwCount(this.value)" style="flex:1;">
-            <button onclick="markKeywordChanged('${key}')" style="flex-shrink:0;font-size:11px;padding:6px 10px;border:1px solid #f9a8d4;border-radius:6px;background:#fdf2f8;color:#db2777;cursor:pointer;font-family:inherit;">변경</button>
+            <button ${kwChangeLocked?'disabled':`onclick="markKeywordChanged('${key}')"`} style="flex-shrink:0;font-size:11px;padding:6px 10px;border:1px solid ${kwChangeLocked?'var(--border)':'#f9a8d4'};border-radius:6px;background:${kwChangeLocked?'#f8fafc':'#fdf2f8'};color:${kwChangeLocked?'#c0c8d4':'#db2777'};cursor:${kwChangeLocked?'not-allowed':'pointer'};font-family:inherit;">변경</button>
           </div>
           <div id="mid-history-area" style="display:none;margin-top:8px;"></div>
         </div>
