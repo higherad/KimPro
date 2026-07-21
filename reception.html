@@ -1341,8 +1341,8 @@ window.closeKwModal = function() {
                 const slots = window.getAllSlots ? window.getAllSlots() : [];
                 const slot = slots.find(s => s.mid === r.id && s.status === 'change');
                 if (slot) {
-                  // 검색키워드 변경 전 상태가 대기였으면 접수로, 그 외(승인 등)면 승인으로 복귀
-                  const target = slot.preChangeStatus === 'pending' ? 'accepted' : 'active';
+                  // 검색키워드 변경 전 상태가 대기(일반 대기 또는 재접수|대기)였으면 접수로, 그 외(승인 등)면 승인으로 복귀
+                  const target = (slot.preChangeStatus === 'pending' || slot.preChangeStatus === 'requeue') ? 'accepted' : 'active';
                   window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
                   slot.status = target; delete slot.preChangeStatus;
                 }
@@ -2568,8 +2568,8 @@ window.closeUexModal = function() {
     const idx  = allSlots.findIndex(x => x._key === key);
     const slot = idx !== -1 ? allSlots[idx] : null;
     if (slot?.status === 'change') {
-      // 검색키워드 변경 전 상태가 대기였으면 접수로, 그 외(승인 등)면 승인으로 복귀
-      const target = slot.preChangeStatus === 'pending' ? 'accepted' : 'active';
+      // 검색키워드 변경 전 상태가 대기(일반 대기 또는 재접수|대기)였으면 접수로, 그 외(승인 등)면 승인으로 복귀
+      const target = (slot.preChangeStatus === 'pending' || slot.preChangeStatus === 'requeue') ? 'accepted' : 'active';
       await HA.updateSlot(key, { status: target, preChangeStatus: null });
       if (idx !== -1) { allSlots[idx].status = target; delete allSlots[idx].preChangeStatus; }
     } else {
