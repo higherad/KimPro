@@ -1340,7 +1340,12 @@ window.closeKwModal = function() {
                 kwLog(`✅ ${r.id} — ${r.message}`, 'success');
                 const slots = window.getAllSlots ? window.getAllSlots() : [];
                 const slot = slots.find(s => s.mid === r.id && s.status === 'change');
-                if (slot) { window.HA.approveSlot(slot._key); slot.status = 'active'; }
+                if (slot) {
+                  // 검색키워드 변경 전 상태가 대기였으면 접수로, 그 외(승인 등)면 승인으로 복귀
+                  const target = slot.preChangeStatus === 'pending' ? 'accepted' : 'active';
+                  window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
+                  slot.status = target; delete slot.preChangeStatus;
+                }
               } else {
                 entry.status = 'fail'; failCnt++;
                 kwLog(`❌ ${r.id} — ${r.message}`, 'fail');
@@ -2560,9 +2565,17 @@ window.closeUexModal = function() {
 
   // ── 승인 ─────────────────────────────────────────────────
   window.approveOne = async function(key) {
-    await HA.approveSlot(key);
-    const idx = allSlots.findIndex(x => x._key === key);
-    if (idx !== -1) allSlots[idx].status = 'active';
+    const idx  = allSlots.findIndex(x => x._key === key);
+    const slot = idx !== -1 ? allSlots[idx] : null;
+    if (slot?.status === 'change') {
+      // 검색키워드 변경 전 상태가 대기였으면 접수로, 그 외(승인 등)면 승인으로 복귀
+      const target = slot.preChangeStatus === 'pending' ? 'accepted' : 'active';
+      await HA.updateSlot(key, { status: target, preChangeStatus: null });
+      if (idx !== -1) { allSlots[idx].status = target; delete allSlots[idx].preChangeStatus; }
+    } else {
+      await HA.approveSlot(key);
+      if (idx !== -1) allSlots[idx].status = 'active';
+    }
     closeModalAndRefresh();
   };
 
@@ -2585,9 +2598,12 @@ window.closeUexModal = function() {
 
   window.markKeywordChanged = async function(key) {
     await saveDetailFields(key);
-    await HA.updateSlot(key, { status: 'change' });
     const idx = allSlots.findIndex(x => x._key === key);
-    if (idx !== -1) allSlots[idx].status = 'change';
+    const patch = { status: 'change' };
+    // 이미 변경 상태인 걸 다시 누른 경우엔 원래 상태를 덮어쓰지 않음
+    if (idx !== -1 && allSlots[idx].status !== 'change') patch.preChangeStatus = allSlots[idx].status;
+    await HA.updateSlot(key, patch);
+    if (idx !== -1) Object.assign(allSlots[idx], patch);
     closeModalAndRefresh();
   };
 
