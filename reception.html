@@ -896,7 +896,7 @@ document.addEventListener('keydown', function(e) {
               days:          remainDays,
               startDate:     tomorrowStr,
               endDate:       originalEndDate,
-              memo:          '강제종료 후 재접수',
+              memo:          s.memo || '',
             });
             if (newSlot && newSlot._key) {
               await window.HA.updateSlot(newSlot._key, { status: 'requeue', isRequeue: true });
@@ -931,7 +931,8 @@ document.addEventListener('keydown', function(e) {
         if (existing.has(mid)) { skipped++; return; }
         // 시작일이 아직 안 된 캠페인은 강제종료 대상에서 제외 (미래 시작일 강제종료는 의미 없음)
         if (s.startDate && s.startDate > todayStr) { futureSkipped++; return; }
-        bsEntries.push({ mid, memo: '', do_pause: bsPause, do_force: bsForce, status: 'ready', result: '' });
+        const memo = (s.memo || '').trim() || todayStr;
+        bsEntries.push({ mid, memo, do_pause: bsPause, do_force: bsForce, status: 'ready', result: '' });
         existing.add(mid);
         added++;
       });
@@ -2421,7 +2422,7 @@ window.closeUexModal = function() {
                 days:          remainDays,
                 startDate:     todayStr,
                 endDate:       s.origEndDate,
-                memo:          '강제종료 후 재접수',
+                memo:          s.memo || '',
               });
               if (newSlot && newSlot._key) {
                 await HA.updateSlot(newSlot._key, { status: 'requeue', isRequeue: true });
