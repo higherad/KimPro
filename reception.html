@@ -23,7 +23,7 @@
     .header-nav-btn { display:flex; align-items:center; gap:5px; padding:7px 14px; border:none; border-radius:0; background:transparent; color:#fff; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:.15s; white-space:nowrap; }
     .header-nav-btn:hover { background:rgba(255,255,255,.15); }
     .header-nav-btn + .header-nav-btn { border-left:1px solid rgba(255,255,255,.2); }
-    .page-wrap { max-width:1680px; margin:0 auto; padding:28px 24px 80px; }
+    .page-wrap { max-width:1920px; margin:0 auto; padding:28px 24px 80px; }
     @media (max-width: 768px) {
       header { padding: 0 16px; height: 56px; }
       .header-back span { display: none; }
@@ -1999,7 +1999,7 @@ import HA from './store.js';
   <div class="dl-prog-lbl" id="dl-prog-lbl"></div>
 </div>
 
-<div class="stat-bar" id="receipt-stat-bar" style="grid-template-columns:repeat(8,1fr)">
+<div class="stat-bar" id="receipt-stat-bar" style="grid-template-columns:repeat(9,1fr)">
   <div class="stat-box">
     <div class="sb-icon" style="background:rgba(245,158,11,.1)">⏳</div>
     <div><div class="sb-label">대기</div><div class="sb-val" id="stat-pending" style="color:var(--warn)">-</div></div>
@@ -2023,6 +2023,10 @@ import HA from './store.js';
   <div class="stat-box">
     <div class="sb-icon" style="background:rgba(16,185,129,.08)">🔄</div>
     <div><div class="sb-label">재접수 승인</div><div class="sb-val" id="stat-requeue-active" style="color:var(--accent)">-</div></div>
+  </div>
+  <div class="stat-box">
+    <div class="sb-icon" style="background:rgba(219,39,119,.1)">🔀</div>
+    <div><div class="sb-label">변경</div><div class="sb-val" id="stat-changed" style="color:#db2777">-</div></div>
   </div>
   <div class="stat-box">
     <div class="sb-icon" style="background:rgba(124,58,237,.1)">⏸</div>
@@ -2450,6 +2454,7 @@ window.closeUexModal = function() {
     const requeueActive   = allSlots.filter(s => s.isRequeue && s.status === 'active').length;
     const paused          = allSlots.filter(s => s.status === 'paused').length;
     const forceStopped    = allSlots.filter(s => s.status === 'force_stopped').length;
+    const changed          = allSlots.filter(s => s.status === 'change').length;
     document.getElementById('stat-pending').textContent          = pending.toLocaleString();
     document.getElementById('stat-accepted').textContent         = accepted.toLocaleString();
     document.getElementById('stat-active').textContent           = active.toLocaleString();
@@ -2458,6 +2463,7 @@ window.closeUexModal = function() {
     document.getElementById('stat-requeue-active').textContent   = requeueActive.toLocaleString();
     document.getElementById('stat-paused').textContent           = paused.toLocaleString();
     document.getElementById('stat-force-stopped').textContent    = forceStopped.toLocaleString();
+    document.getElementById('stat-changed').textContent          = changed.toLocaleString();
 
     const start = (currentPage-1)*PER_PAGE;
     const page  = all.slice(start, start+PER_PAGE);
