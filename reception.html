@@ -119,6 +119,7 @@ async function downloadBacklinkRank() {
   .s-active        { background:rgba(16,185,129,.1);  color:#059669; }
   .s-force-stopped { background:rgba(239,68,68,.1);   color:#dc2626; }
   .s-paused        { background:rgba(124,58,237,.1);  color:#7c3aed; }
+  .s-changed       { background:rgba(219,39,119,.1);  color:#db2777; }
   .s-requeue       { background:rgba(20,184,166,.1);  color:#0f766e; }
   .s-ended         { background:#f1f5f9; color:#64748b; }
   .s-expired       { background:#f1f5f9; color:#64748b; }
@@ -1334,6 +1335,9 @@ window.closeKwModal = function() {
               if (r.success) {
                 entry.status = 'success'; successCnt++;
                 kwLog(`✅ ${r.id} — ${r.message}`, 'success');
+                const slots = window.getAllSlots ? window.getAllSlots() : [];
+                const slot = slots.find(s => s.mid === r.id && s.status === 'change');
+                if (slot) { window.HA.approveSlot(slot._key); slot.status = 'active'; }
               } else {
                 entry.status = 'fail'; failCnt++;
                 kwLog(`❌ ${r.id} — ${r.message}`, 'fail');
@@ -1428,7 +1432,7 @@ window.closeKwModal = function() {
     const existing = new Set(kwEntries.map(e => e.id));
     let added = 0, skipped = 0;
     allSlotsData
-      .filter(s => checkedKeys.has(s._key) && s.status === 'active')
+      .filter(s => checkedKeys.has(s._key) && s.status === 'change')
       .forEach(s => {
         const mid      = (s.mid || '').trim();
         const keywords = (s.searchKeyword || '').trim();
@@ -2088,6 +2092,7 @@ import HA from './store.js';
     <option value="requeue_active">재접수|승인</option>
     <option value="paused">임시중단</option>
     <option value="force_stopped">강제종료</option>
+    <option value="change">변경</option>
     <option value="ended">종료</option>
   </select>
   <select id="filter-slot-type" onchange="renderReceipts()" disabled>
@@ -2225,6 +2230,7 @@ window.closeUexModal = function() {
     active:        '<span class="status-badge s-active">승인</span>',
     force_stopped: '<span class="status-badge s-force-stopped">강제종료</span>',
     paused:        '<span class="status-badge s-paused">임시중단</span>',
+    change:        '<span class="status-badge s-changed">변경</span>',
     requeue:       '<span class="status-badge s-pending">재접수 | 대기</span>',
     ended:         '<span class="status-badge s-ended">종료</span>',
     expired:       '<span class="status-badge s-ended">종료</span>',
@@ -2491,7 +2497,7 @@ window.closeUexModal = function() {
                 <button class="action-btn" style="background:rgba(245,158,11,.15);color:#b45309;" onclick="changeStatusTo('${s._key}','pending')">대기</button>
                 <button class="action-btn" style="background:rgba(59,130,246,.15);color:#1d4ed8;" onclick="acceptOne('${s._key}')">접수</button>
               ` : ''}
-              ${(s.status==='force_stopped' || s.status==='paused') ? `
+              ${(s.status==='force_stopped' || s.status==='paused' || s.status==='change') ? `
                 <button class="action-btn btn-approve" onclick="approveOne('${s._key}')">승인</button>
               ` : ''}
               ${s.status==='requeue' ? `
@@ -2581,6 +2587,14 @@ window.closeUexModal = function() {
     closeModalAndRefresh();
   };
 
+  window.markKeywordChanged = async function(key) {
+    await saveDetailFields(key);
+    await HA.updateSlot(key, { status: 'change' });
+    const idx = allSlots.findIndex(x => x._key === key);
+    if (idx !== -1) allSlots[idx].status = 'change';
+    closeModalAndRefresh();
+  };
+
   // ── 슬롯 삭제 (임시) ─────────────────────────────────────
   window.deleteSlot = async function(key) {
     if (!confirm('이 항목을 삭제하시겠습니까?')) return;
@@ -2656,7 +2670,10 @@ window.closeUexModal = function() {
               이전 키워드 보기
             </button>` : ''}
           </label>
-          <input type="text" class="detail-kw-input" id="detail-keyword-input" value="${escV(s.searchKeyword)}" placeholder="키워드를 입력해주세요" oninput="updateKwCount(this.value)">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" class="detail-kw-input" id="detail-keyword-input" value="${escV(s.searchKeyword)}" placeholder="키워드를 입력해주세요" oninput="updateKwCount(this.value)" style="flex:1;">
+            <button onclick="markKeywordChanged('${key}')" style="flex-shrink:0;font-size:11px;padding:6px 10px;border:1px solid #f9a8d4;border-radius:6px;background:#fdf2f8;color:#db2777;cursor:pointer;font-family:inherit;">변경</button>
+          </div>
           <div id="mid-history-area" style="display:none;margin-top:8px;"></div>
         </div>
         <div class="modal-field" id="yupfl-field-wrap" style="${yupflShown ? '' : 'display:none;'}">
