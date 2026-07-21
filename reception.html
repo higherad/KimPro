@@ -2498,8 +2498,11 @@ window.closeUexModal = function() {
                 <button class="action-btn" style="background:rgba(245,158,11,.15);color:#b45309;" onclick="changeStatusTo('${s._key}','pending')">대기</button>
                 <button class="action-btn" style="background:rgba(59,130,246,.15);color:#1d4ed8;" onclick="acceptOne('${s._key}')">접수</button>
               ` : ''}
-              ${(s.status==='force_stopped' || s.status==='paused' || s.status==='change') ? `
+              ${(s.status==='force_stopped' || s.status==='paused') ? `
                 <button class="action-btn btn-approve" onclick="approveOne('${s._key}')">승인</button>
+              ` : ''}
+              ${s.status==='change' ? `
+                <button class="action-btn" style="background:#f1f5f9;color:var(--text2);" onclick="approveOne('${s._key}')">취소</button>
               ` : ''}
               ${s.status==='requeue' ? `
                 <button class="action-btn" style="background:rgba(59,130,246,.15);color:#1d4ed8;" onclick="acceptOne('${s._key}')">접수</button>
