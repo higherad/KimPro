@@ -98,7 +98,7 @@ async function downloadRankTable() {
   try {
     // kimpro 접수 리스트(window.allSlots)를 그대로 전달 → 백엔드가 동일 MID의
     // 시작일 셀을 배경색으로 표시하고, 순수 승인(재접수 아님) 중 최근 접수일 기준
-    // 기준일/비교 컬럼을 산출
+    // 기준순위/비교 컬럼을 산출
     const fmtDate = d => {
       const dt = new Date(d);
       if (isNaN(dt)) return '';
@@ -161,7 +161,7 @@ async function downloadRankTable() {
     font-size:12px; font-family:inherit; color:var(--text); background:#fff; outline:none;
   }
   #receipt-page .tbl-wrap {
-    background:#fff; border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+    background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden;
   }
   #receipt-page table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
   #receipt-page thead th {
@@ -2552,7 +2552,7 @@ window.closeUexModal = function() {
           <td style="color:var(--text2)">${s.dailyTarget ? s.dailyTarget.toLocaleString() : '-'}</td>
           <td>${statusBadge(s)}</td>
           <td>
-            <div style="display:flex;gap:5px;justify-content:center;">
+            <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;row-gap:4px;">
               <button class="action-btn" style="background:#f1f5f9;color:var(--text2);" onclick="viewDetail('${s._key}')">상세</button>
               ${s.status==='pending' ? `
                 <button class="action-btn" style="background:rgba(59,130,246,.15);color:#1d4ed8;" onclick="acceptOne('${s._key}')">접수</button>
