@@ -19,7 +19,7 @@
     .header-logo span { color:var(--accent); }
     .header-back { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); cursor:pointer; padding:6px 14px; border-radius:7px; border:1px solid rgba(255,255,255,.1); transition:.2s; flex:0 0 auto; margin-left:auto; }
     .header-back:hover { color:#fff; border-color:rgba(255,255,255,.3); }
-    .header-nav { display:flex; align-items:center; flex:1 1 auto; flex-wrap:wrap; row-gap:2px; }
+    .header-nav { display:flex; align-items:center; justify-content:center; flex:1 1 auto; flex-wrap:wrap; row-gap:2px; }
     .header-nav-btn { display:flex; align-items:center; gap:5px; padding:7px 14px; border:none; border-radius:0; background:transparent; color:#fff; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:.15s; white-space:nowrap; }
     .header-nav-btn:hover { background:rgba(255,255,255,.15); }
     .header-nav-btn + .header-nav-btn { border-left:1px solid rgba(255,255,255,.2); }
@@ -161,7 +161,7 @@ async function downloadRankTable() {
     font-size:12px; font-family:inherit; color:var(--text); background:#fff; outline:none;
   }
   #receipt-page .tbl-wrap {
-    background:#fff; border:1px solid var(--border); border-radius:10px; overflow:hidden;
+    background:#fff; border:1px solid var(--border); border-radius:10px; overflow-x:auto;
   }
   #receipt-page table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; }
   #receipt-page thead th {
