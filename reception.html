@@ -96,16 +96,29 @@ async function downloadRankTable() {
   btn.textContent = '📈 다운로드 중...';
 
   try {
-    // kimpro 접수 리스트(allSlots)에서 MID/시작일만 추출 → 백엔드가 동일 MID의
-    // 애드로그 순위 이력에서 해당 날짜 셀을 배경색으로 표시
-    const midStarts = (typeof allSlots !== 'undefined' ? allSlots : [])
-      .filter(s => s.mid && s.startDate)
-      .map(s => ({ mid: s.mid, startDate: s.startDate }));
+    // kimpro 접수 리스트(window.allSlots)를 그대로 전달 → 백엔드가 동일 MID의
+    // 시작일 셀을 배경색으로 표시하고, 순수 승인(재접수 아님) 중 최근 접수일 기준
+    // 순위비교 데이터/비교 컬럼을 산출
+    const fmtDate = d => {
+      const dt = new Date(d);
+      if (isNaN(dt)) return '';
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    };
+    const midEntries = (window.allSlots || [])
+      .filter(s => s.mid)
+      .map(s => ({
+        mid: s.mid,
+        startDate: s.startDate || '',
+        agency: s.agencyId || '',
+        createdDate: s.createdAt ? fmtDate(s.createdAt) : '',
+        status: s.status || '',
+        isRequeue: !!s.isRequeue,
+      }));
 
     const res = await fetch('https://kimpro-premium-938928195180.asia-northeast3.run.app/rank-table', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memo: '1test', midStarts }),
+      body: JSON.stringify({ memo: '1test', midEntries }),
     });
 
     if (!res.ok) {
@@ -2448,6 +2461,7 @@ window.closeUexModal = function() {
       document.getElementById('receipt-body').innerHTML =
         '<tr><td colspan="15"><div class="loading-wrap"><div class="spinner"></div> 데이터 불러오는 중...</div></td></tr>';
       allSlots = await HA.getSlots();
+      window.allSlots = allSlots; // type="module" 스코프 밖(순위표 다운로드 등)에서도 접근 가능하도록 노출
       _slotsLoaded = true;
 
       // ── 종료일 지난 active 캠페인 자동 만료 처리 ──────────────
@@ -2668,6 +2682,7 @@ window.closeUexModal = function() {
     if (!confirm('이 항목을 삭제하시겠습니까?')) return;
     await HA.deleteSlot(key);
     allSlots = allSlots.filter(s => s._key !== key);
+    window.allSlots = allSlots;
     renderReceipts(false);
   };
 
