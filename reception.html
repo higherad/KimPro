@@ -3111,7 +3111,7 @@ window.closeUexModal = function() {
       updates.keywordHistory = [
         ...(s.keywordHistory || []),
         { keyword: updates.searchKeyword, date: new Date().toISOString() },
-      ];
+      ].slice(-10); // 최근 10개만 유지
     }
     const splitEls = [...document.querySelectorAll('.detail-split-kw-input')];
     if (splitEls.length) {
