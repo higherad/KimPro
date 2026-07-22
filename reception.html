@@ -2878,10 +2878,17 @@ window.closeUexModal = function() {
     btn.textContent = '닫기';
     area.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:11px;color:var(--muted);"><div class="spinner"></div> 시트에서 키워드 불러오는 중...</div>';
 
-    // ① 자체 DB 히스토리 (기존 로직 유지)
-    const history = allSlots
+    // ① 자체 DB 히스토리: 같은 MID의 다른 슬롯 문서 접수 키워드 + 이 슬롯 자체에서
+    // 상세→변경으로 덮어쓴 키워드 기록(keywordHistory)을 합쳐서 날짜순으로 보여준다
+    const otherSlotHistory = allSlots
       .filter(s => s.mid === mid && s._key !== currentKey && s.searchKeyword)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      .map(s => ({ keyword: s.searchKeyword, date: s.createdAt }));
+    const currentSlot = allSlots.find(s => s._key === currentKey);
+    const ownChangeHistory = (currentSlot?.keywordHistory || [])
+      .map(h => ({ keyword: h.keyword, date: h.date }));
+    const history = [...otherSlotHistory, ...ownChangeHistory]
+      .filter(h => h.keyword)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // ② 구글 시트 Dashboard에서 실제 키워드 조회
     const sheetKeywords = await fetchSheetKeywordByMid(mid);
@@ -2930,11 +2937,11 @@ window.closeUexModal = function() {
       html += `<div style="font-size:11px;color:var(--muted);padding:6px 0;">이전 접수 키워드 내역이 없습니다.</div>`;
     } else {
       html += `<div style="background:#f8fafc;border-radius:7px;padding:8px 12px;border:1px solid var(--border);max-height:220px;overflow-y:auto;">
-        ${history.map(s => {
-          const kwStr  = s.searchKeyword || '';
+        ${history.map(h => {
+          const kwStr  = h.keyword || '';
           const kwCount = kwStr.split(',').map(k => k.trim()).filter(k => k).length;
           const safeKw = kwStr.replace(/'/g, "\\'");
-          const dateStr = s.createdAt ? uexFmt(new Date(s.createdAt)) : '';
+          const dateStr = h.date ? uexFmt(new Date(h.date)) : '';
           return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
               <div style="display:flex;align-items:center;gap:6px;">
@@ -3096,6 +3103,15 @@ window.closeUexModal = function() {
     for (const [k, v] of Object.entries(fields)) {
       if (v === undefined) continue;
       if (String(v) !== String(s[k] ?? '')) updates[k] = v;
+    }
+    if (updates.searchKeyword) {
+      // 상세에서 키워드를 바꾸면 새 값을 오늘 날짜로 이 슬롯의 자체 히스토리에 남긴다 —
+      // "이전 키워드 보기"는 다른 슬롯 문서를 훑는 방식이라 같은 문서를 덮어쓰기만 하면
+      // 기록이 안 남기 때문에 별도 배열로 보관해뒀다가 히스토리 목록에 합쳐서 보여준다.
+      updates.keywordHistory = [
+        ...(s.keywordHistory || []),
+        { keyword: updates.searchKeyword, date: new Date().toISOString() },
+      ];
     }
     const splitEls = [...document.querySelectorAll('.detail-split-kw-input')];
     if (splitEls.length) {
