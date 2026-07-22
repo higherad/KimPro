@@ -44,6 +44,7 @@
     <button class="header-nav-btn" onclick="openAccountModal()">🔑 계정 설정</button>
     <button class="header-nav-btn" onclick="openYupflSettleModal()">💳 유입플 정산</button>
     <button class="header-nav-btn" id="backlink-rank-btn" onclick="downloadBacklinkRank()">🔗 백링크 순위</button>
+    <button class="header-nav-btn" id="rank-table-btn" onclick="downloadRankTable()">📈 순위표</button>
   </nav>
 </header>
 
@@ -70,6 +71,52 @@ async function downloadBacklinkRank() {
     const disposition = res.headers.get('Content-Disposition') || '';
     const match = disposition.match(/filename="?([^"]+)"?/);
     const filename = match ? match[1] : `백링크_통합_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(`다운로드 실패: ${e.message}`);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+async function downloadRankTable() {
+  const btn = document.getElementById('rank-table-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '📈 다운로드 중...';
+
+  try {
+    // kimpro 접수 리스트(allSlots)에서 MID/시작일만 추출 → 백엔드가 동일 MID의
+    // 애드로그 순위 이력에서 해당 날짜 셀을 배경색으로 표시
+    const midStarts = (typeof allSlots !== 'undefined' ? allSlots : [])
+      .filter(s => s.mid && s.startDate)
+      .map(s => ({ mid: s.mid, startDate: s.startDate }));
+
+    const res = await fetch('https://kimpro-premium-938928195180.asia-northeast3.run.app/rank-table', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memo: '1test', midStarts }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `요청 실패 (${res.status})`);
+    }
+
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `순위표_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
