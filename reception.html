@@ -27,6 +27,10 @@
     .hamburger-btn span { display:block; height:2px; background:#fff; border-radius:2px; }
     .page-wrap { max-width:1800px; margin:0 auto; padding:28px 24px 80px; }
     @media (max-width: 768px) {
+      /* 테이블(min-width:900px)이 페이지 밖으로 흘러나가 body가 가로로 넓어질 때
+         header/page-wrap도 같은 최소 폭을 가져야 배경/카드/버튼이 따로 안 끊기고
+         테이블과 함께 스크롤된다 (형제 요소는 오버플로우로 자동으로 안 넓어짐) */
+      header, .page-wrap { min-width: 900px; }
       header { padding: 8px 16px; min-height: 56px; }
       .header-back span { display: none; }
       .page-wrap { padding: 16px 12px 60px; }
