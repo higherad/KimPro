@@ -23,11 +23,22 @@
     .header-nav-btn { display:flex; align-items:center; gap:5px; padding:7px 14px; border:none; border-radius:0; background:transparent; color:#fff; font-size:13px; font-weight:600; font-family:inherit; cursor:pointer; transition:.15s; white-space:nowrap; }
     .header-nav-btn:hover { background:rgba(255,255,255,.15); }
     .header-nav-btn + .header-nav-btn { border-left:1px solid rgba(255,255,255,.2); }
+    .hamburger-btn { display:none; flex-direction:column; justify-content:center; gap:4px; width:34px; height:34px; padding:8px; border:1px solid rgba(255,255,255,.2); border-radius:8px; background:transparent; cursor:pointer; flex:0 0 auto; }
+    .hamburger-btn span { display:block; height:2px; background:#fff; border-radius:2px; }
     .page-wrap { max-width:1800px; margin:0 auto; padding:28px 24px 80px; }
     @media (max-width: 768px) {
       header { padding: 8px 16px; min-height: 56px; }
       .header-back span { display: none; }
       .page-wrap { padding: 16px 12px 60px; }
+      .hamburger-btn { display:flex; }
+      .header-nav {
+        display:none; position:absolute; top:100%; left:0; right:0;
+        flex-direction:column; justify-content:flex-start; align-items:stretch;
+        background:var(--navy); padding:6px 12px 12px; box-shadow:0 12px 24px rgba(0,0,0,.25);
+      }
+      .header-nav.open { display:flex; }
+      .header-nav-btn { justify-content:flex-start; padding:12px 10px; }
+      .header-nav-btn + .header-nav-btn { border-left:none; border-top:1px solid rgba(255,255,255,.15); }
     }
   </style>
 </head>
@@ -35,20 +46,28 @@
 
 <header>
   <div class="header-logo">HIGHER <span>AD</span></div>
-  <nav class="header-nav">
-    <button class="header-nav-btn" onclick="openUexModal()">📊 엑셀 접수</button>
-    <button class="header-nav-btn" onclick="openStopModal()">🛑 강제종료</button>
-    <button class="header-nav-btn" onclick="openKwModal()">🔤 키워드 변경</button>
-    <button class="header-nav-btn" onclick="openCrModal()">💰 캐시복구</button>
-    <button class="header-nav-btn" onclick="openChargeModal()">⚡ 충전하기</button>
-    <button class="header-nav-btn" onclick="openAccountModal()">🔑 계정 설정</button>
-    <button class="header-nav-btn" onclick="openYupflSettleModal()">💳 유입플 정산</button>
-    <button class="header-nav-btn" id="backlink-rank-btn" onclick="downloadBacklinkRank()">🔗 백링크 순위</button>
-    <button class="header-nav-btn" id="rank-table-btn" onclick="downloadRankTable()">📈 순위표</button>
+  <nav class="header-nav" id="header-nav">
+    <button class="header-nav-btn" onclick="openUexModal();closeMobileNav()">📊 엑셀 접수</button>
+    <button class="header-nav-btn" onclick="openStopModal();closeMobileNav()">🛑 강제종료</button>
+    <button class="header-nav-btn" onclick="openKwModal();closeMobileNav()">🔤 키워드 변경</button>
+    <button class="header-nav-btn" onclick="openCrModal();closeMobileNav()">💰 캐시복구</button>
+    <button class="header-nav-btn" onclick="openChargeModal();closeMobileNav()">⚡ 충전하기</button>
+    <button class="header-nav-btn" onclick="openAccountModal();closeMobileNav()">🔑 계정 설정</button>
+    <button class="header-nav-btn" onclick="openYupflSettleModal();closeMobileNav()">💳 유입플 정산</button>
+    <button class="header-nav-btn" id="backlink-rank-btn" onclick="downloadBacklinkRank();closeMobileNav()">🔗 백링크 순위</button>
+    <button class="header-nav-btn" id="rank-table-btn" onclick="downloadRankTable();closeMobileNav()">📈 순위표</button>
   </nav>
+  <button class="hamburger-btn" onclick="toggleMobileNav()" aria-label="메뉴"><span></span><span></span><span></span></button>
 </header>
 
 <script>
+function toggleMobileNav() {
+  document.getElementById('header-nav').classList.toggle('open');
+}
+function closeMobileNav() {
+  document.getElementById('header-nav').classList.remove('open');
+}
+
 async function downloadBacklinkRank() {
   const btn = document.getElementById('backlink-rank-btn');
   const original = btn.textContent;
@@ -228,7 +247,10 @@ async function downloadRankTable() {
     .sb-icon { width:30px !important; height:30px !important; font-size:13px !important; }
     #receipt-page .filter-bar { flex-wrap: wrap; gap: 6px; }
     #receipt-page .filter-bar > * { flex: 1 1 calc(50% - 6px); min-width: 120px; }
-    #receipt-page .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* 리스트만 따로 스크롤되는 게 아니라 접수관리.html처럼 페이지 전체가 옆으로 넘어가도록
+       tbl-wrap 자체 스크롤을 두지 않고(overflow:visible) 테이블이 페이지 밖으로
+       흘러나가게 둔다 — body 레벨 가로 스크롤로 헤더/카드/테이블이 함께 움직임 */
+    #receipt-page .tbl-wrap { overflow: visible; }
     #receipt-page table { min-width: 900px; }
     .modal-box { width: calc(100vw - 32px); padding: 20px; }
     .modal-row { grid-template-columns: 1fr; }
