@@ -253,9 +253,11 @@ async function downloadRankTable() {
     #receipt-page .filter-bar > * { flex: 1 1 calc(50% - 6px); min-width: 120px; }
     /* 리스트만 따로 스크롤되는 게 아니라 접수관리.html처럼 페이지 전체가 옆으로 넘어가도록
        tbl-wrap 자체 스크롤을 두지 않고(overflow:visible) 테이블이 페이지 밖으로
-       흘러나가게 둔다 — body 레벨 가로 스크롤로 헤더/카드/테이블이 함께 움직임 */
+       흘러나가게 둔다 — body 레벨 가로 스크롤로 헤더/카드/테이블이 함께 움직임.
+       테이블 자체엔 별도 min-width를 주지 않는다 — header/.page-wrap의 min-width:900px가
+       tbl-wrap의 패딩만큼 안쪽에서 시작하는데 테이블에 또 900px를 주면 그 차이만큼
+       테이블이 tbl-wrap 흰 배경 밖으로 삐져나가 버림. width:100%로 tbl-wrap을 꽉 채우면 됨. */
     #receipt-page .tbl-wrap { overflow: visible; }
-    #receipt-page table { min-width: 900px; }
     .modal-box { width: calc(100vw - 32px); padding: 20px; }
     .modal-row { grid-template-columns: 1fr; }
     .uex-table { min-width: 760px; }
