@@ -2911,8 +2911,16 @@ window.closeUexModal = function() {
       .filter(s => s.searchKeyword)
       .map(s => ({ keyword: s.searchKeyword, date: s.createdAt }));
 
+    // ha/slots 승인 시 kimpro/slots로 동일 내용이 복사되므로, 같은 키워드+접수일이면 중복으로 간주해 제거
+    const seen = new Set();
     const history = [...otherSlotHistory, ...ownChangeHistory, ...crossAppHistory]
       .filter(h => h.keyword)
+      .filter(h => {
+        const dedupKey = h.keyword + '|' + h.date;
+        if (seen.has(dedupKey)) return false;
+        seen.add(dedupKey);
+        return true;
+      })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     let html = '';
