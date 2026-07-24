@@ -4125,8 +4125,14 @@ window.closeUexModal = function() {
 
   function renderUexPreview() {
     const validCount = uexRows.filter(r => r.valid).length;
+    const errorCount = uexRows.length - validCount;
     document.getElementById('uex-preview-info').innerHTML =
-      `총 <strong>${uexRows.length}건</strong> 중 <strong style="color:var(--accent)">${validCount}건</strong> 등록 가능 / <strong style="color:var(--danger)">${uexRows.length - validCount}건</strong> 오류`;
+      `총 <strong>${uexRows.length}건</strong> 중 <strong style="color:var(--accent)">${validCount}건</strong> 등록 가능 / <strong style="color:var(--danger)">${errorCount}건</strong> 오류`;
+
+    const submitBtn = document.getElementById('uex-submit-btn');
+    submitBtn.disabled = errorCount > 0;
+    submitBtn.title = errorCount > 0 ? '오류 행이 있어 접수할 수 없습니다. 오류를 수정한 후 다시 업로드해주세요.' : '';
+    submitBtn.textContent = errorCount > 0 ? `오류를 수정해주세요 (${errorCount}건)` : '접수 등록';
 
     document.getElementById('uex-preview-body').innerHTML = uexRows.map((r, i) => {
       const prev = r.mid ? allSlots.find(s => s.mid === r.mid && s.rankKeyword) : null;
@@ -4158,6 +4164,10 @@ window.closeUexModal = function() {
     document.getElementById('uex-file').value = '';
     document.getElementById('uex-zone').style.display = 'block';
     document.getElementById('uex-preview').style.display = 'none';
+    const submitBtn = document.getElementById('uex-submit-btn');
+    submitBtn.disabled = false;
+    submitBtn.title = '';
+    submitBtn.textContent = '접수 등록';
   };
 
   window.downloadUexTemplate = function() {
@@ -4176,6 +4186,7 @@ window.closeUexModal = function() {
 
   // 등록 — HA.addSlot으로 서버에 저장 후, 결과를 그대로 화면 리스트에 꽂아줌
   window.submitUex = async function() {
+    if (uexRows.some(r => !r.valid)) { alert('오류가 있는 행이 있습니다. 오류를 수정한 후 다시 업로드해주세요.'); return; }
     const validRows = uexRows.filter(r => r.valid);
     if (!validRows.length) { alert('등록 가능한 데이터가 없습니다.'); return; }
 
