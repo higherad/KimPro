@@ -2652,10 +2652,6 @@ window.closeUexModal = function() {
     document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
   };
 
-  function getCheckedKeys() {
-    return [...document.querySelectorAll('.row-check:checked')].map(c => c.dataset.key);
-  }
-
   function closeModalAndRefresh() {
     const overlay = document.querySelector('.modal-overlay');
     if (overlay) overlay.remove();
@@ -5051,10 +5047,6 @@ window.closeUexModal = function() {
   function setGradeStatus(p, gradeName, html) {
     (p.gradeRowEls.get(gradeName) || []).forEach(td => td.innerHTML = html);
   }
-  function setAllStatus(p, html) {
-    p.gradeRowEls.forEach((_, name) => setGradeStatus(p, name, html));
-  }
-
   async function executeSubmit(plan, overlay, gate=null) {
     const applyBtn = overlay.querySelector('#submit-apply-btn');
     const closeBtn = overlay.querySelector('#submit-close-btn');

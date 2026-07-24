@@ -7,7 +7,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/fireba
 import { getDatabase, ref,
   set as _set, get as _get, push as _push, update as _update, remove as _remove }
   from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
-import { getAuth, signInWithEmailAndPassword, signOut }
+import { getAuth }
   from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
 
 // ── Firebase 초기화 ──────────────────────────────────────────
@@ -69,33 +69,6 @@ const HA = {
     return JSON.parse(sessionStorage.getItem('ha_current_user') || 'null');
   },
 
-  // ── 로그인 ────────────────────────────────────────────────
-  async login(username, password) {
-    const email = `${username}@higherad.app`;
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const uid  = cred.user.uid;
-      const snapshot = await get(ref(db, PATHS.users));
-      const users    = snapToArray(snapshot);
-      const found    = users.find(u => u.username === username);
-      if (found) {
-        if (found.approved === false) return { ok: false, reason: 'pending' };
-        const user = { ...found, id: uid };
-        sessionStorage.setItem('ha_current_user', JSON.stringify(user));
-        return { ok: true, user };
-      }
-      await signOut(auth);
-      return { ok: false };
-    } catch (e) {
-      return { ok: false };
-    }
-  },
-
-  logout() {
-    sessionStorage.removeItem('ha_current_user');
-    signOut(auth).catch(() => {});
-  },
-
   // ════════════════════════════════════════════════════════
   // 캠페인 CRUD
   // ════════════════════════════════════════════════════════
@@ -148,68 +121,9 @@ const HA = {
     dispatch('ha:slots:updated');
   },
 
-  async getRankData(mid) {
-    const safeMid = mid.replace(/[.#$[\]/]/g, '_');
-    const snap = await get(ref(db, `ha/ranks/${safeMid}`));
-    return snap.exists() ? snap.val() : null;
-  },
-
   async getDoc(path) { return get(ref(db, path)); },
   async setDoc(path, val) { return set(ref(db, path), val); },
   async removeDoc(path) { return remove(ref(db, path)); },
-
-  // ════════════════════════════════════════════════════════
-  // 회원 CRUD
-  // ════════════════════════════════════════════════════════
-
-  async getUsers() {
-    const snapshot = await get(ref(db, PATHS.users));
-    return snapToArray(snapshot);
-  },
-
-  // ════════════════════════════════════════════════════════
-  // 정산
-  // ════════════════════════════════════════════════════════
-
-  async getPaidSet() {
-    const snap = await get(ref(db, 'kimpro/paid'));
-    if (!snap.exists()) return new Set();
-    const val = snap.val();
-    return new Set(Object.keys(val).filter(k => val[k]));
-  },
-
-  async setPaid(key, paid) {
-    if (paid) await set(ref(db, `kimpro/paid/${key}`), true);
-    else       await remove(ref(db, `kimpro/paid/${key}`));
-  },
-
-  async getRefunds() {
-    const snap = await get(ref(db, 'kimpro/refunds'));
-    return snap.exists() ? snap.val() : {};
-  },
-
-  async setRefundAmount(key, val) {
-    if (!val) await remove(ref(db, `kimpro/refunds/${key}`));
-    else       await set(ref(db, `kimpro/refunds/${key}`), val);
-  },
-
-  async saveSettleSnapshot(key, data, overwrite = false) {
-    const r = ref(db, `kimpro/settle_snapshots/${key}`);
-    if (!overwrite) {
-      const snap = await get(r);
-      if (snap.exists()) return;
-    }
-    await set(r, data);
-  },
-
-  async getAllSettleSnapshots() {
-    const snap = await get(ref(db, 'kimpro/settle_snapshots'));
-    return snap.exists() ? snap.val() : {};
-  },
-
-  async deleteSettleSnapshot(key) {
-    await remove(ref(db, `kimpro/settle_snapshots/${key}`));
-  },
 
   async getChargeAccounts(username) {
     const safeU = username.replace(/[.#$[\]/]/g, '_');
