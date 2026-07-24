@@ -222,6 +222,8 @@ async function downloadRankTable() {
   .btn-cancel { padding:8px 20px; border:1px solid var(--border); border-radius:7px; background:#fff; cursor:pointer; font-size:13px; }
   .btn-save   { padding:8px 20px; border:none; border-radius:7px; background:var(--accent); color:#fff; cursor:pointer; font-size:13px; font-weight:600; }
   .btn-save:hover { background:var(--accent2); }
+  .btn-save:disabled { background:var(--muted); cursor:not-allowed; }
+  .btn-save:disabled:hover { background:var(--muted); }
   .empty-row td { height:200px; text-align:center; color:var(--muted); font-size:13px; }
   .pagination { display:flex; justify-content:center; gap:5px; margin-top:16px; }
   .pg-btn { width:30px; height:30px; border:1px solid var(--border); background:#fff; border-radius:6px; font-size:12px; cursor:pointer; color:var(--text2); display:flex; align-items:center; justify-content:center; }
