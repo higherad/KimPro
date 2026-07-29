@@ -2886,16 +2886,18 @@ window.closeUexModal = function() {
       return true;
     });
   }
-  // 자체 DB(allSlots)만으로 구성하는 키워드 히스토리 — 같은 MID의 다른 슬롯 접수 키워드
-  // + 이 슬롯 자체에서 상세→변경으로 덮어쓴 키워드 기록(keywordHistory)을 합쳐 날짜순 반환
-  function localKeywordHistory(mid, currentKey) {
-    const otherSlotHistory = allSlots
-      .filter(s => s.mid === mid && s.searchKeyword)
+  // 자체 DB(allSlots)만으로 구성하는 키워드 히스토리 — 같은 MID의 모든 슬롯의 접수 키워드
+  // + 각 슬롯에서 상세→변경으로 덮어쓴 키워드 기록(keywordHistory)을 합쳐 날짜순 반환
+  // (미션별로 슬롯 문서가 나뉘어 있어, 다른 미션 슬롯에서 일어난 키워드 변경 이력도 놓치지 않도록 currentKey에 한정하지 않고 전체를 모은다)
+  function localKeywordHistory(mid) {
+    const sameMidSlots = allSlots.filter(s => s.mid === mid);
+    const currentHistory = sameMidSlots
+      .filter(s => s.searchKeyword)
       .map(s => ({ keyword: s.searchKeyword, date: s.createdAt }));
-    const currentSlot = allSlots.find(s => s._key === currentKey);
-    const ownChangeHistory = (currentSlot?.keywordHistory || [])
+    const changeHistory = sameMidSlots
+      .flatMap(s => s.keywordHistory || [])
       .map(h => ({ keyword: h.keyword, date: h.date }));
-    return dedupHistoryByDay([...otherSlotHistory, ...ownChangeHistory])
+    return dedupHistoryByDay([...currentHistory, ...changeHistory])
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
@@ -2916,8 +2918,8 @@ window.closeUexModal = function() {
     btn.textContent = '닫기';
     area.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:11px;color:var(--muted);"><div class="spinner"></div> 시트에서 키워드 불러오는 중...</div>';
 
-    // ① 자체 DB 히스토리 (같은 MID 다른 슬롯 접수 키워드 + 이 슬롯의 keywordHistory)
-    const localHistory = localKeywordHistory(mid, currentKey);
+    // ① 자체 DB 히스토리 (같은 MID 모든 슬롯 접수 키워드 + 각 슬롯의 keywordHistory)
+    const localHistory = localKeywordHistory(mid);
 
     // ② 구글 시트 Dashboard에서 실제 키워드 조회 + higher(접수관리.html) 쪽 히스토리 병렬 조회
     const [sheetKeywords, crossAppSlots] = await Promise.all([
@@ -3949,7 +3951,7 @@ window.closeUexModal = function() {
       filtered.forEach(s => {
         if (!s.mid || seenMid.has(s.mid)) return;
         seenMid.add(s.mid);
-        localKeywordHistory(s.mid, s._key).forEach(h => {
+        localKeywordHistory(s.mid).forEach(h => {
           histRows.push([s.mid, s.storeName || '', h.date ? uexFmt(new Date(h.date)) : '', h.keyword]);
         });
       });
