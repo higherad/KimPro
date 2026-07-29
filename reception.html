@@ -2874,6 +2874,31 @@ window.closeUexModal = function() {
     }
   }
 
+  // ── MID 키워드 히스토리 공통 헬퍼 ──────────────────────────
+  // 같은 키워드+접수'일자'(시각 제외)면 중복으로 간주해 제거 (히스토리 모달/엑셀 다운로드 공용)
+  function dedupHistoryByDay(list) {
+    const seen = new Set();
+    return list.filter(h => h.keyword).filter(h => {
+      const dayStr = h.date ? uexFmt(new Date(h.date)) : '';
+      const dedupKey = h.keyword + '|' + dayStr;
+      if (seen.has(dedupKey)) return false;
+      seen.add(dedupKey);
+      return true;
+    });
+  }
+  // 자체 DB(allSlots)만으로 구성하는 키워드 히스토리 — 같은 MID의 다른 슬롯 접수 키워드
+  // + 이 슬롯 자체에서 상세→변경으로 덮어쓴 키워드 기록(keywordHistory)을 합쳐 날짜순 반환
+  function localKeywordHistory(mid, currentKey) {
+    const otherSlotHistory = allSlots
+      .filter(s => s.mid === mid && s.searchKeyword)
+      .map(s => ({ keyword: s.searchKeyword, date: s.createdAt }));
+    const currentSlot = allSlots.find(s => s._key === currentKey);
+    const ownChangeHistory = (currentSlot?.keywordHistory || [])
+      .map(h => ({ keyword: h.keyword, date: h.date }));
+    return dedupHistoryByDay([...otherSlotHistory, ...ownChangeHistory])
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+
   // ── MID 이전 키워드 히스토리 ──────────────────────────────
   window.toggleMidHistory = async function(mid, currentKey) {
     const area = document.getElementById('mid-history-area');
@@ -2891,14 +2916,8 @@ window.closeUexModal = function() {
     btn.textContent = '닫기';
     area.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:11px;color:var(--muted);"><div class="spinner"></div> 시트에서 키워드 불러오는 중...</div>';
 
-    // ① 자체 DB 히스토리: 같은 MID의 모든 슬롯 문서 접수 키워드(현재 보고 있는 것 포함) + 이 슬롯 자체에서
-    // 상세→변경으로 덮어쓴 키워드 기록(keywordHistory)을 합쳐서 날짜순으로 보여준다
-    const otherSlotHistory = allSlots
-      .filter(s => s.mid === mid && s.searchKeyword)
-      .map(s => ({ keyword: s.searchKeyword, date: s.createdAt }));
-    const currentSlot = allSlots.find(s => s._key === currentKey);
-    const ownChangeHistory = (currentSlot?.keywordHistory || [])
-      .map(h => ({ keyword: h.keyword, date: h.date }));
+    // ① 자체 DB 히스토리 (같은 MID 다른 슬롯 접수 키워드 + 이 슬롯의 keywordHistory)
+    const localHistory = localKeywordHistory(mid, currentKey);
 
     // ② 구글 시트 Dashboard에서 실제 키워드 조회 + higher(접수관리.html) 쪽 히스토리 병렬 조회
     const [sheetKeywords, crossAppSlots] = await Promise.all([
@@ -2909,16 +2928,8 @@ window.closeUexModal = function() {
       .filter(s => s.searchKeyword)
       .map(s => ({ keyword: s.searchKeyword, date: s.createdAt }));
 
-    // ha/slots 승인 시 kimpro/slots로 동일 내용이 복사되므로, 같은 키워드+접수일이면 중복으로 간주해 제거
-    const seen = new Set();
-    const history = [...otherSlotHistory, ...ownChangeHistory, ...crossAppHistory]
-      .filter(h => h.keyword)
-      .filter(h => {
-        const dedupKey = h.keyword + '|' + h.date;
-        if (seen.has(dedupKey)) return false;
-        seen.add(dedupKey);
-        return true;
-      })
+    // ha/slots 승인 시 kimpro/slots로 동일 내용이 복사되므로 다시 한 번 날짜 단위로 중복 제거
+    const history = dedupHistoryByDay([...localHistory, ...crossAppHistory])
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     let html = '';
@@ -3930,6 +3941,24 @@ window.closeUexModal = function() {
       const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
       ws['!cols'] = [{wch:12},{wch:16},{wch:22},{wch:48},{wch:14},{wch:14},{wch:6},{wch:12},{wch:10},{wch:20}];
       XLSX.utils.book_append_sheet(wb, ws, '접수');
+
+      // MID별 키워드 히스토리(자체 DB, 날짜별) 시트 — 같은 MID는 한 번만 조회
+      const histHeader = ['MID','업체명','날짜','키워드'];
+      const histRows = [];
+      const seenMid = new Set();
+      filtered.forEach(s => {
+        if (!s.mid || seenMid.has(s.mid)) return;
+        seenMid.add(s.mid);
+        localKeywordHistory(s.mid, s._key).forEach(h => {
+          histRows.push([s.mid, s.storeName || '', h.date ? uexFmt(new Date(h.date)) : '', h.keyword]);
+        });
+      });
+      if (histRows.length) {
+        const histWs = XLSX.utils.aoa_to_sheet([histHeader, ...histRows]);
+        histWs['!cols'] = [{wch:14},{wch:22},{wch:12},{wch:40}];
+        XLSX.utils.book_append_sheet(wb, histWs, '키워드 히스토리');
+      }
+
       const today = new Date();
       const dateStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
       XLSX.writeFile(wb, `접수_${dateStr}.xlsx`);
