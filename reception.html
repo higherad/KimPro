@@ -15,7 +15,7 @@
     }
     body { font-family:'Pretendard',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
     header { background:var(--navy); padding:8px 36px; min-height:60px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:100; }
-    .header-logo { font-size:18px; font-weight:900; letter-spacing:-0.5px; color:#fff; flex:0 0 auto; }
+    .header-logo { font-size:18px; font-weight:900; letter-spacing:-0.5px; color:#fff; flex:0 0 auto; cursor:pointer; }
     .header-logo span { color:var(--accent); }
     .header-back { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); cursor:pointer; padding:6px 14px; border-radius:7px; border:1px solid rgba(255,255,255,.1); transition:.2s; flex:0 0 auto; margin-left:auto; }
     .header-back:hover { color:#fff; border-color:rgba(255,255,255,.3); }
@@ -49,7 +49,7 @@
 <body>
 
 <header>
-  <div class="header-logo">HIGHER <span>AD</span></div>
+  <div class="header-logo" onclick="location.reload()">HIGHER <span>AD</span></div>
   <nav class="header-nav" id="header-nav">
     <button class="header-nav-btn" onclick="openUexModal();closeMobileNav()">📊 엑셀 접수</button>
     <button class="header-nav-btn" onclick="openStopModal();closeMobileNav()">🛑 강제종료</button>
