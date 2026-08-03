@@ -4499,12 +4499,21 @@ window.closeUexModal = function() {
     }
   }
 
-  function buildNormalRows(slots) {
+  function buildNormalRows(slots, unitPrice) {
     const AP = ap();
     const normalProds = AP.filter(p => !FIXED_PROD_IDS.has(p.id));
+    const deductProd = AP.find(p => p.deductOnly);
     const rows = [];
+    let deductTarget = 0, deductAmount = 0;
     slots.forEach(r => {
       const alloc = allocate(AP.slice(), r.dailyTarget||0, r.yupflKeyword, r.splitKeywords);
+      if (deductProd) {
+        const dAmt = alloc[deductProd.id] || 0;
+        if (dAmt > 0) {
+          deductTarget += dAmt * (r.days||0);
+          deductAmount += dAmt * (r.days||0) * (unitPrice||0);
+        }
+      }
       normalProds.forEach(prod => {
         const pp = alloc[prod.id] ?? 0;
         if (pp <= 0) return;
@@ -4525,7 +4534,7 @@ window.closeUexModal = function() {
         });
       });
     });
-    return rows;
+    return { rows, deductTarget, deductAmount };
   }
 
   // 대행사 계정(계정 설정에 등록된 단가)에서 agencyId로 유입플 단가 조회
@@ -4630,9 +4639,10 @@ window.closeUexModal = function() {
 
   async function openSubmitModal(target) {
     const agencies   = getAgencies(target);
+    const normalPriceMap = await getYupflUnitPriceMap();
     const normalPlan = agencies.map(ag => ({
       agency: ag, realAg: ag === '(대행사 미지정)' ? '' : ag,
-      rows: buildNormalRows(slotsByAgency(target, ag)),
+      ...buildNormalRows(slotsByAgency(target, ag), normalPriceMap.get(ag) || 0),
     }));
     const yupflRows  = await buildYoupflRows(target);
     const hasNormal  = ap().some(p => !FIXED_PROD_IDS.has(p.id));
@@ -4785,9 +4795,10 @@ window.closeUexModal = function() {
     }
 
     const totalTarget = p.rows.reduce((a,r)=>a+(r.일목표||0)*(r.일수||0), 0);
+    const deductNote = p.deductTarget ? ` · 차감 ${p.deductTarget.toLocaleString()} (${(p.deductAmount||0).toLocaleString()}원)` : '';
     const hd = document.createElement('div');
     hd.className = 'agency-hd';
-    hd.innerHTML = `<div><div class="aname">${escProd(p.agency)}</div><div class="ameta">총 ${p.rows.length}건 · 목표 합계 ${totalTarget.toLocaleString()}</div></div>`;
+    hd.innerHTML = `<div><div class="aname">${escProd(p.agency)}</div><div class="ameta">총 ${p.rows.length}건 · 목표 합계 ${totalTarget.toLocaleString()}${deductNote}</div></div>`;
     block.appendChild(hd);
 
     const wrap = document.createElement('div'); wrap.style.width = '100%';
