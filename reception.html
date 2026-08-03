@@ -2214,7 +2214,7 @@ import HA from './store.js';
         <th><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
         <th>번호</th><th>접수일시</th><th>대행사</th>
         <th>캠페인타입</th><th>플레이스명</th><th>MID</th><th>순위키워드</th>
-        <th>일 수</th><th>시작일</th><th>종료일</th><th>일 목표</th><th>상태</th><th>액션</th><th>삭제</th>
+        <th>일 수</th><th>시작일</th><th>종료일</th><th id="th-daily-target" onclick="toggleSort()" style="cursor:pointer;user-select:none;white-space:nowrap;" title="클릭하여 정렬">일 목표 <span id="sort-arrow">▼</span></th><th>상태</th><th>액션</th><th>삭제</th>
       </tr>
     </thead>
     <tbody id="receipt-body">
@@ -2316,6 +2316,12 @@ window.closeUexModal = function() {
   const PER_PAGE   = 20;
   let allSlots     = [];
   let filteredAll  = [];
+  let dtSortAsc    = null; // 일 목표 정렬: null=미적용(기본), false=내림차순, true=오름차순
+  window.toggleSort = function() {
+    dtSortAsc = dtSortAsc === false ? true : false;
+    document.getElementById('sort-arrow').textContent = dtSortAsc ? '▲' : '▼';
+    renderReceipts(false);
+  };
   let _slotsLoaded = false;
   let _detailOpen  = false;
 
@@ -2449,6 +2455,9 @@ window.closeUexModal = function() {
         if (!s.createdAt || new Date(s.createdAt).getMonth() + 1 !== 6) return false;
       }
       return true;
+    }).sort((a, b) => {
+      if (dtSortAsc === null) return 0;
+      return dtSortAsc ? (a.dailyTarget||0) - (b.dailyTarget||0) : (b.dailyTarget||0) - (a.dailyTarget||0);
     });
   }
 
@@ -2564,10 +2573,13 @@ window.closeUexModal = function() {
     if (!page.length) {
       body.innerHTML = '<tr class="empty-row"><td colspan="15">데이터가 없습니다.</td></tr>';
     } else {
+      const numMap = new Map([...all]
+        .sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt))
+        .map((s,idx) => [s._key, idx+1]));
       body.innerHTML = page.map((s,i) => `
         <tr>
           <td><input type="checkbox" class="row-check" data-key="${s._key}"></td>
-          <td style="color:var(--text2)">${all.length - start - i}</td>
+          <td style="color:var(--text2)">${numMap.get(s._key)}</td>
           <td style="color:var(--text2)">${s.createdAt ? uexFmt(new Date(s.createdAt)) : '-'}</td>
           <td style="font-weight:600">${s.agencyId||'-'}</td>
           <td>${['pending','accepted','active','paused','force_stopped','requeue'].includes(s.status)
