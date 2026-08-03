@@ -787,6 +787,7 @@ document.addEventListener('keydown', function(e) {
     document.getElementById('bs-prog-txt').textContent = '로그인 중...';
 
     let successCnt = 0, failCnt = 0, processed = 0;
+    const successPromises = [];
     try {
       const res = await fetch(`${SERVER}/process-stream`, {
         method: 'POST',
@@ -816,7 +817,7 @@ document.addEventListener('keydown', function(e) {
               if (r.success) {
                 entry.status = 'success'; successCnt++;
                 bsLog(`✅ ${r.mid} — ${r.message}`, 'success');
-                onBsEntrySuccess(r.mid).catch(err => console.error('onBsEntrySuccess 오류:', err));
+                successPromises.push(onBsEntrySuccess(r.mid).catch(err => console.error('onBsEntrySuccess 오류:', err)));
               } else {
                 const isPartial = r.message.includes('OK') && r.message.includes('실패');
                 entry.status = isPartial ? 'partial' : 'fail'; failCnt++;
@@ -846,6 +847,8 @@ document.addEventListener('keydown', function(e) {
       bsLog(`❌ 서버 오류: ${e.message}`, 'fail');
       document.getElementById('bs-prog-txt').textContent = '오류 발생';
     }
+    await Promise.all(successPromises);
+    if (successPromises.length && window.renderReceipts) window.renderReceipts(false, true);
     window.bsRunning = false;
     if (bsCloseBtn) { bsCloseBtn.disabled = false; bsCloseBtn.style.opacity = ''; bsCloseBtn.style.cursor = ''; }
     bsSave(); bsRender();
@@ -941,7 +944,7 @@ document.addEventListener('keydown', function(e) {
     const tmrwDate    = new Date(); tmrwDate.setDate(tmrwDate.getDate() + 1);
     const tomorrowStr = tmrwDate.toISOString().slice(0, 10);
     try {
-      const slots   = await window.HA.getSlots();
+      const slots   = await window.HA.getSlotsByMid(mid);
       const targets = slots.filter(s => {
         if (s.mid !== mid) return false;
         if (s.status === 'ended') return false;
@@ -998,7 +1001,6 @@ document.addEventListener('keydown', function(e) {
         }
         if (Object.keys(patch).length) await window.HA.updateSlot(s._key, patch);
       }
-      if (window.renderReceipts) window.renderReceipts(false, true);
     } catch(e) { console.error('onBsEntrySuccess 오류:', e); }
   }
 

@@ -4,7 +4,7 @@
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
-import { getDatabase, ref,
+import { getDatabase, ref, query, orderByChild, equalTo,
   set as _set, get as _get, push as _push, update as _update, remove as _remove }
   from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
 import { getAuth }
@@ -78,6 +78,13 @@ const HA = {
     return snapToArray(snapshot).sort((a, b) =>
       new Date(b.createdAt) - new Date(a.createdAt)
     );
+  },
+
+  // 특정 MID의 슬롯만 인덱스 쿼리로 조회 (전체 슬롯을 매번 통째로 내려받는 것을 피하기 위함 —
+  // kimpro/slots에는 .indexOn: "mid"가 걸려있어 서버에서 필터링되어 매칭분만 전송됨)
+  async getSlotsByMid(mid) {
+    const snapshot = await get(query(ref(db, PATHS.slots), orderByChild('mid'), equalTo(mid)));
+    return snapToArray(snapshot);
   },
 
   async addSlot(data) {
