@@ -930,7 +930,9 @@ document.addEventListener('keydown', function(e) {
       badge.textContent = `❌ 연결 실패 (${attempt}회)`;
       badge.className = 'bs-srv-badge bs-srv-err';
       if (attempt === 1 || attempt % 10 === 0) bsLog(`↻ 서버 연결 실패 — ${attempt}번째 재시도 중...`, 'warn');
-      await new Promise(r => setTimeout(r, 5000));
+      // 5s → 10 → 20 → 40 → 60s(상한)로 백오프. 서버 장애 중에도 계속 재시도는 하되 빈도를 낮춘다.
+      const delay = Math.min(5000 * Math.pow(2, Math.min(attempt - 1, 4)), 60000);
+      await new Promise(r => setTimeout(r, delay));
     }
   })();
 
@@ -1565,7 +1567,9 @@ window.closeKwModal = function() {
       badge.textContent = `❌ 연결 실패 (${attempt}회)`;
       badge.className = 'kw-srv-badge kw-srv-err';
       if (attempt === 1 || attempt % 10 === 0) kwLog(`↻ 서버 연결 실패 — ${attempt}번째 재시도 중...`, 'warn');
-      await new Promise(r => setTimeout(r, 5000));
+      // 5s → 10 → 20 → 40 → 60s(상한)로 백오프. 서버 장애 중에도 계속 재시도는 하되 빈도를 낮춘다.
+      const delay = Math.min(5000 * Math.pow(2, Math.min(attempt - 1, 4)), 60000);
+      await new Promise(r => setTimeout(r, delay));
     }
   })();
 
