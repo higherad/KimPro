@@ -87,8 +87,25 @@ const HA = {
     return snapToArray(snapshot);
   },
 
+  // 대량 등록 루프처럼 같은 userId로 addSlot을 여러 번 호출할 때, 매번 users 전체를
+  // 재조회하지 않도록 호출부에서 1회 조회해 각 addSlot({unitPrice: ...})에 넘기는 용도.
+  async getUserUnitPrice(userId) {
+    return getUserUnitPrice(userId);
+  },
+
+  // userId가 서로 다른 슬롯들을 한 번에 처리할 때(강제종료 배치 재접수 등) users 전체를
+  // 한 번만 받아서 username -> unitPrice 맵으로 조회하기 위한 용도.
+  async getUnitPriceMap() {
+    try {
+      const uSnap = await get(ref(db, PATHS.users));
+      const map = {};
+      snapToArray(uSnap).forEach(u => { map[u.username] = u.unitPrice || 0; });
+      return map;
+    } catch (e) { return {}; }
+  },
+
   async addSlot(data) {
-    const unitPriceSnapshot = await getUserUnitPrice(data.userId || '');
+    const unitPriceSnapshot = (data.unitPrice != null) ? data.unitPrice : await getUserUnitPrice(data.userId || '');
 
     const newSlot = {
       status:        'pending',

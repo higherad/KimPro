@@ -644,6 +644,13 @@ document.addEventListener('keydown', function(e) {
   let bsEntries = [];
   let bsPause = false, bsForce = false;
   let bsSearchQ = '';
+  // 배치 강제종료 재접수 시 MID마다 개별 addSlot이 users 전체를 재조회하지 않도록
+  // 이 IIFE 안에서 1회만 조회해 재사용 (userId가 서로 다른 슬롯들이 섞여 있어 맵으로 조회)
+  let _bsUnitPriceMap = null;
+  async function getBsUnitPriceMap() {
+    if (!_bsUnitPriceMap) _bsUnitPriceMap = await window.HA.getUnitPriceMap();
+    return _bsUnitPriceMap;
+  }
 
   function bsEsc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -981,6 +988,7 @@ document.addEventListener('keydown', function(e) {
             x.mid === s.mid && x.startDate === tomorrowStr && x.endDate === originalEndDate && x.status !== 'ended'
           );
           if (remainDays >= 1 && !alreadyExists) {
+            const bsUnitPriceMap = await getBsUnitPriceMap();
             const newSlot = await window.HA.addSlot({
               agencyId:      s.agencyId      || '',
               userId:        s.userId        || '',
@@ -994,6 +1002,7 @@ document.addEventListener('keydown', function(e) {
               startDate:     tomorrowStr,
               endDate:       originalEndDate,
               memo:          s.memo || '',
+              unitPrice:     bsUnitPriceMap[s.userId || ''] || 0,
             });
             if (newSlot && newSlot._key) {
               await window.HA.updateSlot(newSlot._key, { status: 'requeue', isRequeue: true });
@@ -2330,6 +2339,13 @@ window.closeUexModal = function() {
   };
   let _slotsLoaded = false;
   let _detailOpen  = false;
+  // 자동만료 재접수 배치 처리 시 슬롯마다 개별 addSlot이 users 전체를 재조회하지 않도록
+  // 이 스코프 안에서 1회만 조회해 재사용 (userId가 서로 다른 슬롯들이 섞여 있어 맵으로 조회)
+  let _expireUnitPriceMap = null;
+  async function getExpireUnitPriceMap() {
+    if (!_expireUnitPriceMap) _expireUnitPriceMap = await HA.getUnitPriceMap();
+    return _expireUnitPriceMap;
+  }
 
   const stMap = {
     pending:       '<span class="status-badge s-pending">대기</span>',
@@ -2528,6 +2544,7 @@ window.closeUexModal = function() {
             const origEnd    = new Date(s.origEndDate);
             const remainDays = Math.round((origEnd - new Date(todayStr)) / 86400000) + 1;
             if (remainDays >= 1) {
+              const expireUnitPriceMap = await getExpireUnitPriceMap();
               const newSlot = await HA.addSlot({
                 agencyId:      s.agencyId      || '',
                 userId:        s.userId        || '',
@@ -2541,6 +2558,7 @@ window.closeUexModal = function() {
                 startDate:     todayStr,
                 endDate:       s.origEndDate,
                 memo:          s.memo || '',
+                unitPrice:     expireUnitPriceMap[s.userId || ''] || 0,
               });
               if (newSlot && newSlot._key) {
                 await HA.updateSlot(newSlot._key, { status: 'requeue', isRequeue: true });
