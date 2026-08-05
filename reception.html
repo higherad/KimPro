@@ -519,6 +519,7 @@ async function downloadRankTable() {
       .bs-srv-ok  { background:#d1fae5; color:#065f46; }
       .bs-srv-err { background:#fee2e2; color:#991b1b; }
       .bs-srv-chk { background:#f1f5f9; color:var(--text2); }
+      .bs-pcode-badge { display:inline-block; padding:1px 6px; border-radius:100px; font-size:9.5px; font-weight:700; background:#e9d8fd; color:#553c9a; font-family:monospace; }
     </style>
 
     <div class="bs-grid">
@@ -533,6 +534,10 @@ async function downloadRankTable() {
           <div class="bs-fg">
             <label>MID</label>
             <input type="text" id="bs-mid" placeholder="예: 1839711962">
+          </div>
+          <div class="bs-fg">
+            <label>Pcode (선택)</label>
+            <input type="text" id="bs-pcode" placeholder="비우면 MID의 전체 캠페인 대상">
           </div>
           <div class="bs-fg">
             <label>메모 (선택)</label>
@@ -552,7 +557,7 @@ async function downloadRankTable() {
           <div class="bs-upload-zone" id="bs-drop-zone" onclick="document.getElementById('bs-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / 임시중단B(O) / 강제종료(O) / 메모</div>
+            <div class="uz-hint">MID / Pcode(선택) / 임시중단B(O) / 강제종료(O) / 메모</div>
           </div>
           <input type="file" id="bs-file" accept=".xlsx,.xls" style="display:none" onchange="bsHandleExcel(this.files[0])">
         </div>
@@ -564,7 +569,7 @@ async function downloadRankTable() {
           <span class="bs-card-title">📋 처리 목록 <span class="bs-badge" id="bs-entry-count">0</span></span>
           <div class="bs-search">
             <span style="font-size:11px">🔍</span>
-            <input type="text" placeholder="MID 검색" oninput="bsFilterList(this.value)">
+            <input type="text" placeholder="MID / Pcode 검색" oninput="bsFilterList(this.value)">
           </div>
         </div>
         <div class="bs-sel-row">
@@ -671,17 +676,20 @@ document.addEventListener('keydown', function(e) {
   };
 
   window.bsAddEntry = function() {
-    const mid  = document.getElementById('bs-mid').value.trim();
-    const memo = document.getElementById('bs-memo').value.trim();
+    const mid   = document.getElementById('bs-mid').value.trim();
+    const pcode = document.getElementById('bs-pcode').value.trim();
+    const memo  = document.getElementById('bs-memo').value.trim();
     if (!mid) { alert('MID를 입력해주세요.'); return; }
     if (!bsPause && !bsForce && !memo) { alert('처리 작업을 선택하거나 메모를 입력해주세요.'); return; }
-    bsEntries.push({ mid, memo, do_pause: bsPause, do_force: bsForce, status: 'ready', result: '' });
+    if (bsEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { alert('이미 등록된 MID/Pcode 조합입니다.'); return; }
+    bsEntries.push({ mid, pcode, memo, do_pause: bsPause, do_force: bsForce, status: 'ready', result: '' });
     bsSave();
     document.getElementById('bs-mid').value = '';
+    document.getElementById('bs-pcode').value = '';
     document.getElementById('bs-memo').value = '';
     bsRender();
     const act = [bsPause?'임시중단B':'', bsForce?'강제종료':''].filter(Boolean).join('+') || '메모만';
-    bsLog(`추가: ${mid} — ${act}`, 'info');
+    bsLog(`추가: ${mid}${pcode?' / '+pcode:''} — ${act}`, 'info');
   };
 
   window.bsRemoveChecked = function() {
@@ -731,7 +739,7 @@ document.addEventListener('keydown', function(e) {
       bsSyncAll(); return;
     }
     const list = bsSearchQ
-      ? bsEntries.filter(e => e.mid.includes(bsSearchQ))
+      ? bsEntries.filter(e => e.mid.includes(bsSearchQ) || (e.pcode||'').toLowerCase().includes(bsSearchQ))
       : bsEntries;
     if (!list.length) {
       tbody.innerHTML = '<tr><td colspan="5"><div class="bs-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
@@ -744,7 +752,7 @@ document.addEventListener('keydown', function(e) {
       return `<tr id="bs-row-${i}" class="${e.checked?'bs-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="bsToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#7b1fa2;cursor:pointer;"></td>
         <td>
-          <div class="bs-td-mid">${bsEsc(e.mid)}</div>
+          <div class="bs-td-mid">${bsEsc(e.mid)}${e.pcode?` <span class="bs-pcode-badge">${bsEsc(e.pcode)}</span>`:''}</div>
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${bsEsc(e.result)}</div>`:''}
         </td>
         <td>
@@ -786,7 +794,7 @@ document.addEventListener('keydown', function(e) {
     if (bsCloseBtn) { bsCloseBtn.disabled = true; bsCloseBtn.style.opacity = '0.3'; bsCloseBtn.style.cursor = 'not-allowed'; }
     document.getElementById('bs-btn-run').disabled = true;
     document.getElementById('bs-prog-wrap').style.display = 'block';
-    const payload = selected.map(e => ({ mid: e.mid, memo: e.memo||'', do_pause: e.do_pause, do_force: e.do_force }));
+    const payload = selected.map(e => ({ mid: e.mid, pcode: e.pcode||'', memo: e.memo||'', do_pause: e.do_pause, do_force: e.do_force }));
     selected.forEach(e => { e.status = 'running'; e.result = ''; });
     bsRender();
     bsLog(`▶ 시작 — ${selected.length}개 항목${skipped?' (완료 '+skipped+'건 건너뜀)':''}`, 'info');
@@ -818,7 +826,7 @@ document.addEventListener('keydown', function(e) {
           if (data.ping) continue;
           if (data.entry_result) {
             const r = data.entry_result;
-            const entry = bsEntries.find(e => e.mid === r.mid);
+            const entry = bsEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||''));
             if (entry) {
               entry.result = r.message;
               if (r.success) {
@@ -881,6 +889,7 @@ document.addEventListener('keydown', function(e) {
           const hdr      = rows[0].map(h => String(h||'').trim());
           const hasHdr   = isNaN(Number(hdr[0]));
           const midCol   = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 0;
+          const pcodeCol = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : -1;
           const pauseCol = hasHdr ? hdr.findIndex(h => /임시중단/i.test(h)) : 1;
           const forceCol = hasHdr ? hdr.findIndex(h => /강제종료/i.test(h)) : 2;
           const memoCol  = hasHdr ? hdr.findIndex(h => /메모/i.test(h))     : 3;
@@ -889,12 +898,13 @@ document.addEventListener('keydown', function(e) {
           for (let r = start; r < rows.length; r++) {
             const row      = rows[r];
             const mid      = String(row[midCol]   ||'').trim();
+            const pcode    = pcodeCol >= 0 ? String(row[pcodeCol]||'').trim() : '';
             const do_pause = pauseCol >= 0 && String(row[pauseCol]||'').trim().toUpperCase() === 'O';
             const do_force = forceCol >= 0 && String(row[forceCol]||'').trim().toUpperCase() === 'O';
             const memo     = memoCol  >= 0 ? String(row[memoCol] ||'').trim() : '';
             if (!mid || (!do_pause && !do_force && !memo)) { skipped++; continue; }
-            if (bsEntries.some(e => e.mid === mid)) { skipped++; continue; }
-            bsEntries.push({ mid, memo, do_pause, do_force, status:'ready', result:'' });
+            if (bsEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { skipped++; continue; }
+            bsEntries.push({ mid, pcode, memo, do_pause, do_force, status:'ready', result:'' });
             added++;
           }
           bsSave(); bsRender();
@@ -1095,6 +1105,12 @@ import HA from './store.js';
       .kw-card-head { background:#f8fafc; padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
       .kw-card-title { font-size:12px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; }
       .kw-card-body { padding:14px; }
+      .kw-toggle { display:flex; background:#f0f2f5; border-radius:7px; padding:3px; gap:2px; margin-bottom:10px; }
+      .kw-toggle button { flex:1; padding:5px 0; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; background:transparent; color:#718096; font-family:inherit; }
+      .kw-toggle button.active { background:#fff; color:#0277bd; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+      .kw-type-badge { display:inline-block; padding:1px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; margin-left:5px; }
+      .kw-type-pcode { background:#e9d8fd; color:#553c9a; }
+      .kw-type-mid   { background:#feebc8; color:#c05621; }
       .kw-fg { margin-bottom:10px; }
       .kw-fg label { display:block; font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
       .kw-fg input[type=text], .kw-fg textarea { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:inherit; color:var(--text); outline:none; transition:border-color .2s; box-sizing:border-box; }
@@ -1175,9 +1191,13 @@ import HA from './store.js';
           <span class="kw-srv-badge kw-srv-chk" id="kw-srv-badge">⏳ 서버 확인 중</span>
         </div>
         <div class="kw-card-body">
+          <div class="kw-toggle">
+            <button id="kw-toggle-pcode" class="active" onclick="kwSetIdType('pcode')">Pcode</button>
+            <button id="kw-toggle-mid" onclick="kwSetIdType('mid')">MID</button>
+          </div>
           <div class="kw-fg">
-            <label>MID</label>
-            <input type="text" id="kw-id">
+            <label id="kw-id-label">Pcode</label>
+            <input type="text" id="kw-id" placeholder="예: P21169CA0DAB3776F">
           </div>
           <div class="kw-fg">
             <label>키워드</label>
@@ -1197,7 +1217,7 @@ import HA from './store.js';
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / 키워드 / 메모(선택)</div>
+            <div class="uz-hint">Pcode 또는 MID / 키워드 / 메모(선택)</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
         </div>
@@ -1209,7 +1229,7 @@ import HA from './store.js';
           <span class="kw-card-title">📋 처리 목록 <span class="kw-badge" id="kw-entry-count">0</span></span>
           <div class="kw-search">
             <span style="font-size:11px">🔍</span>
-            <input type="text" placeholder="MID 검색" oninput="kwFilterList(this.value)">
+            <input type="text" placeholder="Pcode / MID 검색" oninput="kwFilterList(this.value)">
           </div>
         </div>
         <div class="kw-sel-row">
@@ -1225,7 +1245,7 @@ import HA from './store.js';
             <thead>
               <tr>
                 <th style="width:34px"></th>
-                <th>MID</th>
+                <th>Pcode / MID</th>
                 <th>키워드</th>
                 <th>메모</th>
                 <th style="width:68px">상태</th>
@@ -1290,17 +1310,28 @@ window.closeKwModal = function() {
 (function() {
   const SERVER = 'https://macro-3-bizfit-keyword-938928195180.asia-northeast3.run.app';
   let kwEntries = [];
+  let kwIdType = 'pcode';
   let kwSearchQ = '';
 
   function kwEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function kwSave() { if (window.kwFbSave) window.kwFbSave(kwEntries); }
 
+  window.kwSetIdType = function(type) {
+    kwIdType = type;
+    document.getElementById('kw-toggle-pcode').classList.toggle('active', type === 'pcode');
+    document.getElementById('kw-toggle-mid').classList.toggle('active', type === 'mid');
+    document.getElementById('kw-id-label').textContent = type === 'pcode' ? 'Pcode' : 'MID';
+    document.getElementById('kw-id').placeholder = type === 'pcode' ? '예: P21169CA0DAB3776F' : '예: 1839711962';
+  };
+
+  function kwDetectIdType(value) { return /^P[A-Z0-9]{10,}/i.test(value) ? 'pcode' : 'mid'; }
+
   window.kwAddEntry = function() {
     const id       = document.getElementById('kw-id').value.trim();
     const keywords = document.getElementById('kw-keywords').value.trim();
     const memo     = document.getElementById('kw-memo').value.trim();
-    const id_type  = 'mid';
-    if (!id) { alert('MID를 입력해주세요.'); return; }
+    const id_type  = kwIdType;
+    if (!id) { alert(`${id_type === 'pcode' ? 'Pcode' : 'MID'}를 입력해주세요.`); return; }
     if (!keywords) { alert('키워드를 입력해주세요.'); return; }
     kwEntries.push({ id, id_type, keywords, memo, status: 'ready', result: '' });
     kwSave();
@@ -1308,7 +1339,7 @@ window.closeKwModal = function() {
     document.getElementById('kw-keywords').value = '';
     document.getElementById('kw-memo').value = '';
     kwRender();
-    kwLog(`추가: ${id} — ${keywords.split(',').length}개 키워드`, 'info');
+    kwLog(`추가 [${id_type.toUpperCase()}]: ${id} — ${keywords.split(',').length}개 키워드`, 'info');
   };
 
   window.kwRemoveChecked = function() {
@@ -1368,7 +1399,7 @@ window.closeKwModal = function() {
       return `<tr id="kw-row-${i}" class="${e.checked?'kw-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="kwToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#0277bd;cursor:pointer;"></td>
         <td>
-          <div class="kw-td-id">${kwEsc(e.id)}</div>
+          <div class="kw-td-id">${kwEsc(e.id)}<span class="kw-type-badge ${e.id_type==='pcode'?'kw-type-pcode':'kw-type-mid'}">${e.id_type==='pcode'?'Pcode':'MID'}</span></div>
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
         <td><div class="kw-td-kw" title="${kwEsc(e.keywords)}">${kwEsc(e.keywords)}</div></td>
@@ -1396,7 +1427,7 @@ window.closeKwModal = function() {
     const skipped  = checked.length - selected.length;
     if (!selected.length) { alert('선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)'); return; }
     const distribute = document.getElementById('kw-distribute-global').checked;
-    const summary = selected.map(e => `  · ${e.id}`).join('\n');
+    const summary = selected.map(e => `  · [${e.id_type.toUpperCase()}] ${e.id}`).join('\n');
     if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — MID 캠페인 수만큼 키워드 균등 배분)' : ''}\n\n${summary}\n\n총 ${selected.length}건${skipped ? ` (완료된 ${skipped}건은 건너뜀)` : ''}`)) return;
 
     window.kwRunning = true;
@@ -1440,7 +1471,7 @@ window.closeKwModal = function() {
               entry.result = r.message;
               if (r.success) {
                 entry.status = 'success'; successCnt++;
-                kwLog(`✅ ${r.id} — ${r.message}`, 'success');
+                kwLog(`✅ [${(r.id_type||'').toUpperCase()}] ${r.id} — ${r.message}`, 'success');
                 const slots = window.getAllSlots ? window.getAllSlots() : [];
                 const slot = slots.find(s => s.mid === r.id && s.status === 'change');
                 if (slot) {
@@ -1451,7 +1482,7 @@ window.closeKwModal = function() {
                 }
               } else {
                 entry.status = 'fail'; failCnt++;
-                kwLog(`❌ ${r.id} — ${r.message}`, 'fail');
+                kwLog(`❌ [${(r.id_type||'').toUpperCase()}] ${r.id} — ${r.message}`, 'fail');
               }
             }
             processed++;
@@ -1506,7 +1537,7 @@ window.closeKwModal = function() {
             const memo     = String(rows[r][2] || '').trim();
             if (!id || !keywords) { skipped++; continue; }
             if (kwEntries.some(e => e.id === id)) { skipped++; continue; }
-            kwEntries.push({ id, id_type: 'mid', keywords, memo, status: 'ready', result: '' });
+            kwEntries.push({ id, id_type: kwDetectIdType(id), keywords, memo, status: 'ready', result: '' });
             added++;
           }
           kwSave(); kwRender();
@@ -1588,7 +1619,7 @@ window.closeKwModal = function() {
       kwEntries = data.map(e => ({
         ...e,
         id:      e.id      || e.pcode || '',
-        id_type: 'mid',
+        id_type: e.id_type || (e.pcode ? 'pcode' : kwDetectIdType(e.id || '')),
         memo:    e.memo    || '',
         status:  'ready',
         result:  '',
