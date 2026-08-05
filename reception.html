@@ -802,7 +802,7 @@ document.addEventListener('keydown', function(e) {
     document.getElementById('bs-prog-txt').textContent = '로그인 중...';
 
     let successCnt = 0, failCnt = 0, processed = 0;
-    const successPromises = [];
+    const successMids = new Set();  // 같은 MID로 pcode 여러 개를 한 배치에 넣어도 onBsEntrySuccess는 MID당 1번만
     try {
       const res = await fetch(`${SERVER}/process-stream`, {
         method: 'POST',
@@ -832,7 +832,7 @@ document.addEventListener('keydown', function(e) {
               if (r.success) {
                 entry.status = 'success'; successCnt++;
                 bsLog(`✅ ${r.mid} — ${r.message}`, 'success');
-                successPromises.push(onBsEntrySuccess(r.mid).catch(err => console.error('onBsEntrySuccess 오류:', err)));
+                successMids.add(r.mid);
               } else {
                 const isPartial = r.message.includes('OK') && r.message.includes('실패');
                 entry.status = isPartial ? 'partial' : 'fail'; failCnt++;
@@ -862,6 +862,7 @@ document.addEventListener('keydown', function(e) {
       bsLog(`❌ 서버 오류: ${e.message}`, 'fail');
       document.getElementById('bs-prog-txt').textContent = '오류 발생';
     }
+    const successPromises = [...successMids].map(mid => onBsEntrySuccess(mid).catch(err => console.error('onBsEntrySuccess 오류:', err)));
     await Promise.all(successPromises);
     if (successPromises.length && window.renderReceipts) window.renderReceipts(false, true);
     window.bsRunning = false;
