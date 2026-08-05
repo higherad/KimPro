@@ -132,6 +132,7 @@ async function downloadRankTable() {
       .map(s => ({
         mid: s.mid,
         startDate: s.startDate || '',
+        endDate: s.endDate || '',
         agency: s.agencyId || '',
         createdDate: s.createdAt ? fmtDate(s.createdAt) : '',
         status: s.status || '',
