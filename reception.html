@@ -133,6 +133,7 @@ async function downloadRankTable() {
         mid: s.mid,
         startDate: s.startDate || '',
         endDate: s.endDate || '',
+        dailyTarget: s.dailyTarget || 0,
         agency: s.agencyId || '',
         createdDate: s.createdAt ? fmtDate(s.createdAt) : '',
         status: s.status || '',
