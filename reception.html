@@ -1194,8 +1194,12 @@ import HA from './store.js';
         </div>
         <div class="kw-card-body">
           <div class="kw-fg">
-            <label>Pcode / MID</label>
-            <input type="text" id="kw-id" placeholder="Pcode 또는 MID">
+            <label>MID</label>
+            <input type="text" id="kw-mid" placeholder="예: 1839711962">
+          </div>
+          <div class="kw-fg">
+            <label>Pcode (선택)</label>
+            <input type="text" id="kw-pcode" placeholder="비우면 MID 전체 대상, 여러 개는 콤마로 구분">
           </div>
           <div class="kw-fg">
             <label>키워드</label>
@@ -1215,7 +1219,7 @@ import HA from './store.js';
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">Pcode 또는 MID / 키워드 / 메모(선택)</div>
+            <div class="uz-hint">MID / Pcode(선택) / 키워드 / 메모(선택)</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
         </div>
@@ -1227,7 +1231,7 @@ import HA from './store.js';
           <span class="kw-card-title">📋 처리 목록 <span class="kw-badge" id="kw-entry-count">0</span></span>
           <div class="kw-search">
             <span style="font-size:11px">🔍</span>
-            <input type="text" placeholder="Pcode / MID 검색" oninput="kwFilterList(this.value)">
+            <input type="text" placeholder="MID / Pcode 검색" oninput="kwFilterList(this.value)">
           </div>
         </div>
         <div class="kw-sel-row">
@@ -1243,15 +1247,14 @@ import HA from './store.js';
             <thead>
               <tr>
                 <th style="width:34px"></th>
-                <th style="width:56px">타입</th>
-                <th>Pcode / MID</th>
+                <th>MID</th>
                 <th>키워드</th>
                 <th>메모</th>
                 <th style="width:68px">상태</th>
               </tr>
             </thead>
             <tbody id="kw-tbody">
-              <tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
+              <tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -1314,22 +1317,22 @@ window.closeKwModal = function() {
   function kwEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function kwSave() { if (window.kwFbSave) window.kwFbSave(kwEntries); }
 
-  function kwDetectIdType(value) { return /^P[A-Z0-9]{10,}/i.test(value) ? 'pcode' : 'mid'; }
-
   window.kwAddEntry = function() {
-    const id       = document.getElementById('kw-id').value.trim();
+    const mid      = document.getElementById('kw-mid').value.trim();
+    const pcode    = document.getElementById('kw-pcode').value.trim();
     const keywords = document.getElementById('kw-keywords').value.trim();
     const memo     = document.getElementById('kw-memo').value.trim();
-    if (!id) { alert('Pcode 또는 MID를 입력해주세요.'); return; }
+    if (!mid) { alert('MID를 입력해주세요.'); return; }
     if (!keywords) { alert('키워드를 입력해주세요.'); return; }
-    const id_type = kwDetectIdType(id);
-    kwEntries.push({ id, id_type, keywords, memo, status: 'ready', result: '' });
+    if (kwEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { alert('이미 등록된 MID/Pcode 조합입니다.'); return; }
+    kwEntries.push({ mid, pcode, keywords, memo, status: 'ready', result: '' });
     kwSave();
-    document.getElementById('kw-id').value = '';
+    document.getElementById('kw-mid').value = '';
+    document.getElementById('kw-pcode').value = '';
     document.getElementById('kw-keywords').value = '';
     document.getElementById('kw-memo').value = '';
     kwRender();
-    kwLog(`추가 [${id_type.toUpperCase()}]: ${id} — ${keywords.split(',').length}개 키워드`, 'info');
+    kwLog(`추가: ${mid}${pcode?' / '+pcode:''} — ${keywords.split(',').length}개 키워드`, 'info');
   };
 
   window.kwRemoveChecked = function() {
@@ -1372,14 +1375,14 @@ window.closeKwModal = function() {
     const tbody = document.getElementById('kw-tbody');
     document.getElementById('kw-entry-count').textContent = kwEntries.length;
     if (!kwEntries.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const list = kwSearchQ
-      ? kwEntries.filter(e => e.id.toLowerCase().includes(kwSearchQ))
+      ? kwEntries.filter(e => e.mid.includes(kwSearchQ) || (e.pcode||'').toLowerCase().includes(kwSearchQ))
       : kwEntries;
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const sc = { ready:'kw-sb-ready', running:'kw-sb-running', success:'kw-sb-success', fail:'kw-sb-fail' };
@@ -1388,9 +1391,8 @@ window.closeKwModal = function() {
       const i = kwEntries.indexOf(e);
       return `<tr id="kw-row-${i}" class="${e.checked?'kw-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="kwToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#0277bd;cursor:pointer;"></td>
-        <td><span class="kw-type-badge ${e.id_type==='pcode'?'kw-type-pcode':'kw-type-mid'}">${e.id_type==='pcode'?'Pcode':'MID'}</span></td>
         <td>
-          <div class="kw-td-id">${kwEsc(e.id)}</div>
+          <div class="kw-td-id">${kwEsc(e.mid)}${e.pcode?` <span class="kw-type-badge kw-type-pcode">${kwEsc(e.pcode)}</span>`:''}</div>
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
         <td><div class="kw-td-kw" title="${kwEsc(e.keywords)}">${kwEsc(e.keywords)}</div></td>
@@ -1418,15 +1420,15 @@ window.closeKwModal = function() {
     const skipped  = checked.length - selected.length;
     if (!selected.length) { alert('선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)'); return; }
     const distribute = document.getElementById('kw-distribute-global').checked;
-    const summary = selected.map(e => `  · [${e.id_type.toUpperCase()}] ${e.id}`).join('\n');
-    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — MID 캠페인 수만큼 키워드 균등 배분)' : ''}\n\n${summary}\n\n총 ${selected.length}건${skipped ? ` (완료된 ${skipped}건은 건너뜀)` : ''}`)) return;
+    const summary = selected.map(e => `  · ${e.mid}${e.pcode?' / '+e.pcode:''}`).join('\n');
+    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — Pcode 개수만큼 키워드 균등 배분)' : ''}\n\n${summary}\n\n총 ${selected.length}건${skipped ? ` (완료된 ${skipped}건은 건너뜀)` : ''}`)) return;
 
     window.kwRunning = true;
     const kwCloseBtn = document.getElementById('kw-close-btn');
     if (kwCloseBtn) { kwCloseBtn.disabled = true; kwCloseBtn.style.opacity = '0.3'; kwCloseBtn.style.cursor = 'not-allowed'; }
     document.getElementById('kw-btn-run').disabled = true;
     document.getElementById('kw-prog-wrap').style.display = 'block';
-    const payload = selected.map(e => ({ id: e.id, id_type: e.id_type, keywords: e.keywords, memo: e.memo || '', distribute }));
+    const payload = selected.map(e => ({ mid: e.mid, pcode: e.pcode||'', keywords: e.keywords, memo: e.memo || '', distribute }));
     selected.forEach(e => { e.status = 'running'; e.result = ''; });
     kwRender();
     kwLog(`▶ 시작 — ${selected.length}개 캠페인${distribute ? ' (배분 모드)' : ''}${skipped ? ` (완료 ${skipped}건 건너뜀)` : ''}`, 'info');
@@ -1457,14 +1459,14 @@ window.closeKwModal = function() {
           if (data.ping) continue;
           if (data.entry_result) {
             const r = data.entry_result;
-            const entry = kwEntries.find(e => e.id === r.id);
+            const entry = kwEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||''));
             if (entry) {
               entry.result = r.message;
               if (r.success) {
                 entry.status = 'success'; successCnt++;
-                kwLog(`✅ [${(r.id_type||'').toUpperCase()}] ${r.id} — ${r.message}`, 'success');
+                kwLog(`✅ ${r.mid}${r.pcode?' / '+r.pcode:''} — ${r.message}`, 'success');
                 const slots = window.getAllSlots ? window.getAllSlots() : [];
-                const slot = slots.find(s => s.mid === r.id && s.status === 'change');
+                const slot = slots.find(s => s.mid === r.mid && s.status === 'change');
                 if (slot) {
                   // 대기/재접수|대기 → 접수, 접수/재접수|접수 → 접수(그대로), 승인/재접수|승인 → 승인(그대로)
                   const target = slot.preChangeStatus === 'active' ? 'active' : 'accepted';
@@ -1473,7 +1475,7 @@ window.closeKwModal = function() {
                 }
               } else {
                 entry.status = 'fail'; failCnt++;
-                kwLog(`❌ [${(r.id_type||'').toUpperCase()}] ${r.id} — ${r.message}`, 'fail');
+                kwLog(`❌ ${r.mid}${r.pcode?' / '+r.pcode:''} — ${r.message}`, 'fail');
               }
             }
             processed++;
@@ -1520,15 +1522,24 @@ window.closeKwModal = function() {
           const wb   = window.XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
           const rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
           if (!rows.length) { kwLog('⚠️ 빈 파일입니다.', 'warn'); return; }
-          const start = (rows.length > 0 && isNaN(rows[0][0])) ? 1 : 0;
+          // 헤더 행으로 컬럼 위치 자동 감지 (순위표 다운로드 결과를 그대로 붙여넣어도 인식되도록)
+          const hdr      = rows[0].map(h => String(h||'').trim());
+          const hasHdr   = isNaN(Number(hdr[0]));
+          const midCol   = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 0;
+          const pcodeCol = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : -1;
+          const kwCol    = hasHdr ? hdr.findIndex(h => /키워드/i.test(h)) : 1;
+          const memoCol  = hasHdr ? hdr.findIndex(h => /메모/i.test(h))   : 2;
+          const start    = hasHdr ? 1 : 0;
           let added = 0, skipped = 0;
           for (let r = start; r < rows.length; r++) {
-            const id       = String(rows[r][0] || '').trim();
-            const keywords = String(rows[r][1] || '').trim();
-            const memo     = String(rows[r][2] || '').trim();
-            if (!id || !keywords) { skipped++; continue; }
-            if (kwEntries.some(e => e.id === id)) { skipped++; continue; }
-            kwEntries.push({ id, id_type: kwDetectIdType(id), keywords, memo, status: 'ready', result: '' });
+            const row      = rows[r];
+            const mid      = String(row[midCol] || '').trim();
+            const pcode    = pcodeCol >= 0 ? String(row[pcodeCol]||'').trim() : '';
+            const keywords = kwCol    >= 0 ? String(row[kwCol]   ||'').trim() : '';
+            const memo     = memoCol  >= 0 ? String(row[memoCol] ||'').trim() : '';
+            if (!mid || !keywords) { skipped++; continue; }
+            if (kwEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { skipped++; continue; }
+            kwEntries.push({ mid, pcode, keywords, memo, status: 'ready', result: '' });
             added++;
           }
           kwSave(); kwRender();
@@ -1555,7 +1566,7 @@ window.closeKwModal = function() {
   // '변경' 상태인 캠페인을 전부 키워드 변경 목록으로 일괄 삽입 (상세에 등록된 검색키워드를 그대로 불러옴)
   window.kwLoadFromList = function() {
     const allSlotsData = window.getAllSlots ? window.getAllSlots() : [];
-    const existing = new Set(kwEntries.map(e => e.id));
+    const existing = new Set(kwEntries.map(e => e.mid));
     let added = 0, skipped = 0;
     allSlotsData
       .filter(s => s.status === 'change')
@@ -1565,7 +1576,7 @@ window.closeKwModal = function() {
         const memo     = (s.memo || '').trim();
         if (!mid || !keywords) { skipped++; return; }
         if (existing.has(mid)) { skipped++; return; }
-        kwEntries.push({ id: mid, id_type: 'mid', keywords, memo, status: 'ready', result: '' });
+        kwEntries.push({ mid, pcode: '', keywords, memo, status: 'ready', result: '' });
         existing.add(mid);
         added++;
       });
@@ -1609,9 +1620,10 @@ window.closeKwModal = function() {
     if (Array.isArray(data) && data.length > 0) {
       kwEntries = data.map(e => ({
         ...e,
-        id:      e.id      || e.pcode || '',
-        id_type: e.id_type || (e.pcode ? 'pcode' : kwDetectIdType(e.id || '')),
-        memo:    e.memo    || '',
+        // 예전 버전(id/id_type 단일 필드)으로 저장된 목록과의 호환 — id_type이 mid면 mid로, 아니면 pcode로 이관
+        mid:     e.mid   ?? (e.id_type === 'mid' ? e.id : ''),
+        pcode:   e.pcode ?? (e.id_type === 'mid' ? '' : e.id) ?? '',
+        memo:    e.memo  || '',
         status:  'ready',
         result:  '',
         checked: e.checked ?? false,
