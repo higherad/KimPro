@@ -1110,10 +1110,7 @@ import HA from './store.js';
       .kw-card-head { background:#f8fafc; padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
       .kw-card-title { font-size:12px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; }
       .kw-card-body { padding:14px; }
-      .kw-toggle { display:flex; background:#f0f2f5; border-radius:7px; padding:3px; gap:2px; margin-bottom:10px; }
-      .kw-toggle button { flex:1; padding:5px 0; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; background:transparent; color:#718096; font-family:inherit; }
-      .kw-toggle button.active { background:#fff; color:#0277bd; box-shadow:0 1px 3px rgba(0,0,0,.12); }
-      .kw-type-badge { display:inline-block; padding:1px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; margin-left:5px; }
+      .kw-type-badge { display:inline-block; padding:1px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; }
       .kw-type-pcode { background:#e9d8fd; color:#553c9a; }
       .kw-type-mid   { background:#feebc8; color:#c05621; }
       .kw-fg { margin-bottom:10px; }
@@ -1196,13 +1193,9 @@ import HA from './store.js';
           <span class="kw-srv-badge kw-srv-chk" id="kw-srv-badge">⏳ 서버 확인 중</span>
         </div>
         <div class="kw-card-body">
-          <div class="kw-toggle">
-            <button id="kw-toggle-pcode" class="active" onclick="kwSetIdType('pcode')">Pcode</button>
-            <button id="kw-toggle-mid" onclick="kwSetIdType('mid')">MID</button>
-          </div>
           <div class="kw-fg">
-            <label id="kw-id-label">Pcode</label>
-            <input type="text" id="kw-id" placeholder="예: P21169CA0DAB3776F">
+            <label>Pcode / MID</label>
+            <input type="text" id="kw-id" placeholder="Pcode 또는 MID">
           </div>
           <div class="kw-fg">
             <label>키워드</label>
@@ -1250,6 +1243,7 @@ import HA from './store.js';
             <thead>
               <tr>
                 <th style="width:34px"></th>
+                <th style="width:56px">타입</th>
                 <th>Pcode / MID</th>
                 <th>키워드</th>
                 <th>메모</th>
@@ -1257,7 +1251,7 @@ import HA from './store.js';
               </tr>
             </thead>
             <tbody id="kw-tbody">
-              <tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
+              <tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -1315,19 +1309,10 @@ window.closeKwModal = function() {
 (function() {
   const SERVER = 'https://macro-3-bizfit-keyword-938928195180.asia-northeast3.run.app';
   let kwEntries = [];
-  let kwIdType = 'pcode';
   let kwSearchQ = '';
 
   function kwEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function kwSave() { if (window.kwFbSave) window.kwFbSave(kwEntries); }
-
-  window.kwSetIdType = function(type) {
-    kwIdType = type;
-    document.getElementById('kw-toggle-pcode').classList.toggle('active', type === 'pcode');
-    document.getElementById('kw-toggle-mid').classList.toggle('active', type === 'mid');
-    document.getElementById('kw-id-label').textContent = type === 'pcode' ? 'Pcode' : 'MID';
-    document.getElementById('kw-id').placeholder = type === 'pcode' ? '예: P21169CA0DAB3776F' : '예: 1839711962';
-  };
 
   function kwDetectIdType(value) { return /^P[A-Z0-9]{10,}/i.test(value) ? 'pcode' : 'mid'; }
 
@@ -1335,9 +1320,9 @@ window.closeKwModal = function() {
     const id       = document.getElementById('kw-id').value.trim();
     const keywords = document.getElementById('kw-keywords').value.trim();
     const memo     = document.getElementById('kw-memo').value.trim();
-    const id_type  = kwIdType;
-    if (!id) { alert(`${id_type === 'pcode' ? 'Pcode' : 'MID'}를 입력해주세요.`); return; }
+    if (!id) { alert('Pcode 또는 MID를 입력해주세요.'); return; }
     if (!keywords) { alert('키워드를 입력해주세요.'); return; }
+    const id_type = kwDetectIdType(id);
     kwEntries.push({ id, id_type, keywords, memo, status: 'ready', result: '' });
     kwSave();
     document.getElementById('kw-id').value = '';
@@ -1387,14 +1372,14 @@ window.closeKwModal = function() {
     const tbody = document.getElementById('kw-tbody');
     document.getElementById('kw-entry-count').textContent = kwEntries.length;
     if (!kwEntries.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const list = kwSearchQ
       ? kwEntries.filter(e => e.id.toLowerCase().includes(kwSearchQ))
       : kwEntries;
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const sc = { ready:'kw-sb-ready', running:'kw-sb-running', success:'kw-sb-success', fail:'kw-sb-fail' };
@@ -1403,8 +1388,9 @@ window.closeKwModal = function() {
       const i = kwEntries.indexOf(e);
       return `<tr id="kw-row-${i}" class="${e.checked?'kw-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="kwToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#0277bd;cursor:pointer;"></td>
+        <td><span class="kw-type-badge ${e.id_type==='pcode'?'kw-type-pcode':'kw-type-mid'}">${e.id_type==='pcode'?'Pcode':'MID'}</span></td>
         <td>
-          <div class="kw-td-id">${kwEsc(e.id)}<span class="kw-type-badge ${e.id_type==='pcode'?'kw-type-pcode':'kw-type-mid'}">${e.id_type==='pcode'?'Pcode':'MID'}</span></div>
+          <div class="kw-td-id">${kwEsc(e.id)}</div>
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
         <td><div class="kw-td-kw" title="${kwEsc(e.keywords)}">${kwEsc(e.keywords)}</div></td>
