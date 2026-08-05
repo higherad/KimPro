@@ -198,6 +198,26 @@
 </div>
 
 <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
+
+// kimpro RTDB 규칙이 이 계정 로그인 여부로 read/write를 판단함(2026-08-05 추가 —
+// 이전엔 kimpro 전체가 인증 없이도 read/write 가능했음, project_kimpro_rtdb_unprotected.md 참조).
+// 코드 "kimpro" 입력 시 이 고정 계정으로 Firebase Auth 로그인해 실제 인증 세션을 만든다.
+const firebaseConfig = {
+  apiKey: "AIzaSyAF-Rn7tzIjQeyUDJKnvKTRNccsXUVsIjo",
+  authDomain: "higherad-b9d62.firebaseapp.com",
+  databaseURL: "https://higherad-b9d62-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "higherad-b9d62",
+  storageBucket: "higherad-b9d62.firebasestorage.app",
+  messagingSenderId: "938928195180",
+  appId: "1:938928195180:web:8209b1e02a8caabe643a49",
+  measurementId: "G-01T4L4ZGVV"
+};
+const auth = getAuth(initializeApp(firebaseConfig));
+const KIMPRO_ACCESS_EMAIL = 'kimpro-access@higherad.app';
+const KIMPRO_ACCESS_PASSWORD = 'm0N7anwQIcPTIarfhWvkpBN0';
+
 const loginForm = document.getElementById('login-form');
 const codeInput = document.getElementById('code');
 const loginBtn = document.getElementById('login-btn');
@@ -235,7 +255,9 @@ loginForm.addEventListener('submit', async (e) => {
   clearMessages();
 
   try {
-    // kimpro 코드 확인 → 바로 접근 허용
+    // kimpro 코드 확인 → 고정 서비스 계정으로 실제 Firebase Auth 로그인(RTDB 규칙이 이걸 검사함)
+    await signInWithEmailAndPassword(auth, KIMPRO_ACCESS_EMAIL, KIMPRO_ACCESS_PASSWORD);
+
     const user = {
       id: 'kimpro-access',
       username: 'kimpro',
@@ -243,9 +265,9 @@ loginForm.addEventListener('submit', async (e) => {
       role: 'admin',
       approved: true
     };
-    
+
     sessionStorage.setItem('ha_current_user', JSON.stringify(user));
-    
+
     // 접수관리 페이지로 이동
     window.location.href = './reception.html';
   } catch (error) {
