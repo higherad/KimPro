@@ -523,8 +523,7 @@ async function downloadRankTable() {
       .bs-srv-chk { background:#f1f5f9; color:var(--text2); }
       .bs-pcode-badge { display:inline-block; padding:1px 6px; border-radius:100px; font-size:9.5px; font-weight:700; background:#e9d8fd; color:#553c9a; font-family:monospace; }
       .sec-lbl-row { display:flex; align-items:center; justify-content:space-between; }
-      .excel-tpl-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:5px; border:1px solid var(--border); background:#fff; color:var(--text2); font-size:11px; line-height:1; text-decoration:none; text-transform:none; cursor:pointer; transition:all .15s; }
-      .excel-tpl-btn span { transform:translate(0,2px); }
+      .excel-tpl-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:5px; border:1px solid var(--border); background:#fff; color:var(--text2); text-decoration:none; text-transform:none; cursor:pointer; transition:all .15s; }
       .excel-tpl-btn:hover { background:#f1f5f9; color:var(--text); border-color:#94a3b8; }
     </style>
 
@@ -561,7 +560,7 @@ async function downloadRankTable() {
           <hr class="bs-divider">
           <div class="bs-sec-lbl sec-lbl-row">
             <span>📂 엑셀 등록</span>
-            <a class="excel-tpl-btn" href="양식/강제종료_양식.xlsx" download="강제종료_양식.xlsx" title="양식 다운로드"><span>⬇</span></a>
+            <a class="excel-tpl-btn" href="양식/강제종료_양식.xlsx" download="강제종료_양식.xlsx" title="양식 다운로드"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></a>
           </div>
           <div class="bs-upload-zone" id="bs-drop-zone" onclick="document.getElementById('bs-file').click()">
             <div class="uz-icon">📊</div>
@@ -1226,7 +1225,7 @@ import HA from './store.js';
           <hr class="kw-divider">
           <div class="kw-sec-lbl sec-lbl-row">
             <span>📂 엑셀 등록</span>
-            <a class="excel-tpl-btn" href="양식/키워드변경_양식.xlsx" download="키워드변경_양식.xlsx" title="양식 다운로드"><span>⬇</span></a>
+            <a class="excel-tpl-btn" href="양식/키워드변경_양식.xlsx" download="키워드변경_양식.xlsx" title="양식 다운로드"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></a>
           </div>
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
