@@ -4870,9 +4870,15 @@ window.closeUexModal = function() {
       charlieKeys: charlieAlreadyDone.size ? charlieAlreadyDone : null,
       slotMap: new Map(allSlots.map(s => [s._key, s])),
       async tryApprove() {
-        const [primary, ...rest] = this.legs;
+        // 재접수 우회는 일반/찰리(실제 상품)만 자격이 있음 — 유입플은 단독 활성일 때만(게이트 자체가
+        // 안 생김) 즉시승인되고, 다른 상품과 같이 있을 땐 절대 우회 트리거가 되면 안 됨. 그래서 primary는
+        // legs[0](배열 순서)이 아니라 normalKeys→charlieKeys 우선으로 명시 선택한다.
+        const primary = this.legs.includes('normalKeys')  ? 'normalKeys'
+                       : this.legs.includes('charlieKeys') ? 'charlieKeys'
+                       : this.legs[0];
+        const rest = this.legs.filter(l => l !== primary);
         if (this[primary] === null) return;
-        // 재접수(isRequeue) 슬롯은 다른 탭 완료 여부와 무관하게 첫 탭만 끝나면 승인 —
+        // 재접수(isRequeue) 슬롯은 다른 탭 완료 여부와 무관하게 일반/찰리 중 하나만 끝나면 승인 —
         // finalizeSlotApprovals()의 즉시승인 우회와 동일한 예외를 여기(재오픈 시점 정합화)에도 적용해야
         // "한 탭만 끝난 채 모달을 재오픈만 한 경우"에도 정상적으로 승인 전환됨
         const keys = [...this[primary]].filter(k => {
