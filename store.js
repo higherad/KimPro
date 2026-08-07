@@ -76,7 +76,7 @@ const HA = {
   async getSlots() {
     const snapshot = await get(ref(db, PATHS.slots));
     return snapToArray(snapshot).sort((a, b) =>
-      new Date(b.createdAt) - new Date(a.createdAt)
+      new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     );
   },
 
