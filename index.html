@@ -218,6 +218,14 @@ const auth = getAuth(initializeApp(firebaseConfig));
 const KIMPRO_ACCESS_EMAIL = 'kimpro-access@higherad.app';
 const KIMPRO_ACCESS_PASSWORD = 'm0N7anwQIcPTIarfhWvkpBN0';
 
+// kimpro RTDB 규칙이 kimpro-access 계정 하나만 허용하므로, 코드가 달라도(kimpro/member)
+// 실제 Firebase Auth 로그인은 항상 이 계정으로 한다. 세션에 저장하는 username만 다르게 둬서
+// 상세 잠금(reception.html의 편집 중 팝업)이 서로 다른 사람으로 구분하게 한다.
+const CODE_USERS = {
+  kimpro: { id: 'kimpro-access', username: 'kimpro', agency: 'kimpro', role: 'admin', approved: true },
+  member: { id: 'kimpro-member', username: 'member', agency: 'kimpro', role: 'member', approved: true },
+};
+
 const loginForm = document.getElementById('login-form');
 const codeInput = document.getElementById('code');
 const loginBtn = document.getElementById('login-btn');
@@ -241,8 +249,9 @@ loginForm.addEventListener('submit', async (e) => {
     return;
   }
 
-  // kimpro만 허용
-  if (code !== 'kimpro') {
+  // kimpro / member 코드만 허용
+  const user = CODE_USERS[code];
+  if (!user) {
     showError('유효하지 않은 코드입니다.');
     codeInput.value = '';
     codeInput.focus();
@@ -255,16 +264,8 @@ loginForm.addEventListener('submit', async (e) => {
   clearMessages();
 
   try {
-    // kimpro 코드 확인 → 고정 서비스 계정으로 실제 Firebase Auth 로그인(RTDB 규칙이 이걸 검사함)
+    // 코드 확인 → 고정 서비스 계정으로 실제 Firebase Auth 로그인(RTDB 규칙이 이걸 검사함)
     await signInWithEmailAndPassword(auth, KIMPRO_ACCESS_EMAIL, KIMPRO_ACCESS_PASSWORD);
-
-    const user = {
-      id: 'kimpro-access',
-      username: 'kimpro',
-      agency: 'kimpro',
-      role: 'admin',
-      approved: true
-    };
 
     sessionStorage.setItem('ha_current_user', JSON.stringify(user));
 

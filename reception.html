@@ -2457,6 +2457,71 @@ window.closeUexModal = function() {
     }
   }
 
+  // ── 상세 팝업 잠금 (동시 편집 방지, higher/접수관리.html과 동일 규칙) ─────────
+  // kimpro RTDB 규칙은 kimpro-access 계정만 read/write 허용이라(공개 REST carve-out 없음),
+  // 접수관리.html처럼 인증 없는 fetch(DELETE)를 못 쓰고 Firebase SDK(인증된 세션)로 직접 처리한다.
+  const LOCK_TTL_MS      = 10 * 60 * 1000; // 10분 초과 잠금은 자동 무효
+  const LOCK_CHECK_CACHE = new Map();      // key → { conflict, by, ts }
+  const LOCK_CACHE_TTL   = 10_000;         // 10초 캐시
+
+  // 잠금 획득 — Firebase 트랜잭션으로 충돌(check-then-write race) 없이 원자적으로 처리
+  async function acquireDetailLock(key) {
+    const cu       = window.HA?.getCurrentUser?.() || {};
+    const staffId  = cu.username || cu.id || 'unknown';
+    const lockData = { staffId, staffName: staffId, lockedAt: new Date().toISOString() };
+    const { getDatabase, ref, runTransaction, onDisconnect } = await import(
+      'https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js'
+    );
+    const lockRef = ref(getDatabase(), `kimpro/detail_locks/${key}`);
+    let conflictBy = null;
+    const result = await runTransaction(lockRef, current => {
+      if (current && current.staffId !== staffId) {
+        const age = Date.now() - new Date(current.lockedAt).getTime();
+        if (age < LOCK_TTL_MS) {
+          conflictBy = current.staffName || current.staffId;
+          return;
+        }
+      }
+      return lockData;
+    }, { applyLocally: false });
+    if (!result.committed) {
+      const by = conflictBy || 'other user';
+      LOCK_CHECK_CACHE.set(key, { conflict: true, by, ts: Date.now() });
+      return { acquired: false, by };
+    }
+    LOCK_CHECK_CACHE.delete(key);
+    onDisconnect(lockRef).remove();
+    return { acquired: true };
+  }
+
+  async function releaseDetailLock(key) {
+    LOCK_CHECK_CACHE.delete(key);
+    try {
+      const { getDatabase, ref, remove, onDisconnect } = await import(
+        'https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js'
+      );
+      const lockRef = ref(getDatabase(), `kimpro/detail_locks/${key}`);
+      await remove(lockRef);
+      onDisconnect(lockRef).cancel();
+    } catch (_) {}
+  }
+
+  function showLockNotice(byName) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box" style="width:340px;text-align:center;padding:36px 28px;">
+        <div style="font-size:32px;margin-bottom:14px;">🔒</div>
+        <div class="modal-title" style="margin-bottom:8px;">편집 중</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:24px;">
+          <strong style="color:var(--text)">${byName}</strong> 님이 현재 이 항목을<br>편집하고 있습니다.<br>
+          <span style="font-size:12px;color:var(--muted)">창을 닫으면 다시 열 수 있습니다.</span>
+        </div>
+        <button class="btn-cancel" onclick="this.closest('.modal-overlay').remove()">확인</button>
+      </div>`;
+    document.body.appendChild(overlay);
+  }
+
   // 등급 배지(회색 채움)와 유입플 미션 배지(아웃라인)를 함께 렌더링 — 예: 블랙 올리브 9번
   function _renderGradeBadgesHtml(data) {
     if (!data) return '-';
@@ -2787,6 +2852,7 @@ window.closeUexModal = function() {
     await HA.updateSlot(key, { status: 'accepted' });
     const idx = allSlots.findIndex(x => x._key === key);
     if (idx !== -1) allSlots[idx].status = 'accepted';
+    await releaseDetailLock(key);
     closeModalAndRefresh();
   };
 
@@ -2798,6 +2864,7 @@ window.closeUexModal = function() {
     if (idx !== -1 && allSlots[idx].status !== 'change') patch.preChangeStatus = allSlots[idx].status;
     await HA.updateSlot(key, patch);
     if (idx !== -1) Object.assign(allSlots[idx], patch);
+    await releaseDetailLock(key);
     closeModalAndRefresh();
   };
 
@@ -2828,6 +2895,27 @@ window.closeUexModal = function() {
     const s = allSlots.find(x => x._key === key);
     if (!s) return;
     _detailOpen = true;
+
+    // 캐시에 충돌 기록이 있으면 네트워크 없이 즉시 차단
+    const _cached = LOCK_CHECK_CACHE.get(key);
+    if (_cached && _cached.conflict && Date.now() - _cached.ts < LOCK_CACHE_TTL) {
+      _detailOpen = false;
+      showLockNotice(_cached.by);
+      return;
+    }
+    let lock;
+    try {
+      lock = await acquireDetailLock(key);
+    } catch (e) {
+      _detailOpen = false;
+      alert('상세 잠금 획득에 실패했습니다. 다시 시도해주세요.');
+      return;
+    }
+    if (!lock.acquired) {
+      _detailOpen = false;
+      showLockNotice(lock.by);
+      return;
+    }
 
     // modal 즉시 표시 (낙관적 UI)
     const overlay = document.createElement('div');
@@ -3277,6 +3365,7 @@ window.closeUexModal = function() {
 
   window.closeDetailModal = async function(key) {
     await saveDetailFields(key);
+    await releaseDetailLock(key);
     closeModalAndRefresh();
   };
 
