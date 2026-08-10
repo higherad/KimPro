@@ -3259,6 +3259,36 @@ window.closeUexModal = function() {
     area.innerHTML = html;
   };
 
+  // 자체 DB(allSlots)만으로 구성하는 유입플 키워드 히스토리 — 같은 MID의 모든 슬롯에 남아있는
+  // 유입플 키워드 + 상세→변경으로 덮어쓴 기록(yupflKeywordHistory)을 합쳐 날짜순 반환
+  function localYupflKeywordHistory(mid) {
+    const sameMidSlots = allSlots.filter(s => s.mid === mid);
+    const sortedByCreated = sameMidSlots
+      .filter(s => s.yupflKeyword)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    const currentHistory = sortedByCreated
+      .filter((s, i) => i === 0 || s.yupflKeyword !== sortedByCreated[i - 1].yupflKeyword)
+      .map(s => ({ keyword: s.yupflKeyword, date: s.createdAt }));
+    const changeHistory = sameMidSlots
+      .flatMap(s => s.yupflKeywordHistory || [])
+      .map(h => ({ keyword: h.keyword, date: h.date }));
+    return dedupHistoryByDay([...currentHistory, ...changeHistory])
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+  // 자체 DB 히스토리 + higher(접수관리.html) 쪽 히스토리(ha/slots)까지 합친 전체 유입플 키워드 히스토리
+  // (일반 검색키워드의 fullKeywordHistory와 동일하게 양쪽 앱 히스토리를 합쳐서 보여준다)
+  async function fullYupflKeywordHistory(mid) {
+    const crossAppSlots = await fetchCrossAppSlots('ha/slots', mid);
+    const crossAppCurrent = crossAppSlots
+      .filter(s => s.yupflKeyword)
+      .map(s => ({ keyword: s.yupflKeyword, date: s.createdAt }));
+    const crossAppChangeHistory = crossAppSlots
+      .flatMap(s => s.yupflKeywordHistory || [])
+      .map(h => ({ keyword: h.keyword, date: h.date }));
+    return dedupHistoryByDay([...localYupflKeywordHistory(mid), ...crossAppCurrent, ...crossAppChangeHistory])
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+
   // 미션 번호마다 고정된 색을 배정 — 같은 번호는 항상 같은 색
   const MISSION_BADGE_COLORS = ['#1d4ed8','#059669','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#4d7c0f'];
   function missionBadgeColor(mission) {
@@ -3320,7 +3350,10 @@ window.closeUexModal = function() {
     btn.textContent = '닫기';
     area.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:11px;color:var(--muted);"><div class="spinner"></div> 유입플 키워드 불러오는 중...</div>';
 
-    const entries = await fetchYoupflKeywordByMid(mid);
+    const [entries, history] = await Promise.all([
+      fetchYoupflKeywordByMid(mid),
+      fullYupflKeywordHistory(mid),
+    ]);
 
     let html = `<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:5px;">
       <span style="background:#3b82f6;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">LIVE</span>
@@ -3351,6 +3384,38 @@ window.closeUexModal = function() {
               style="font-size:10px;padding:2px 8px;border:1px solid #3b82f6;border-radius:4px;background:#fff;color:#3b82f6;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;">
               적용
             </button>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    // ── 섹션 ②: 접수 이력 키워드 (자체 DB + higher(접수관리.html) 쪽, 미션 구분 없이 mid 기준) ──
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text2);margin:10px 0 6px;display:flex;align-items:center;gap:5px;">
+      <span style="background:#94a3b8;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">히스토리</span>
+      접수 이력 키워드
+    </div>`;
+
+    if (!history.length) {
+      html += `<div style="font-size:11px;color:var(--muted);padding:6px 0;">이전 유입플 키워드 내역이 없습니다.</div>`;
+    } else {
+      html += `<div style="background:#f8fafc;border-radius:7px;padding:8px 12px;border:1px solid var(--border);max-height:220px;overflow-y:auto;">
+        ${history.map(h => {
+          const kwStr  = h.keyword || '';
+          const kwCount = kwStr.split(',').map(k => k.trim()).filter(k => k).length;
+          const safeKw = kwStr.replace(/'/g, "\\'");
+          const dateStr = h.date ? uexFmt(new Date(h.date)) : '';
+          return `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:11px;color:var(--text2);">${dateStr}</span>
+                <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">${kwCount}개</span>
+              </div>
+              <button onclick="(function(){var el=document.getElementById('${targetInputId}');if(el){el.value='${safeKw}';updateDetailKwBadge(el,'${badgeId}');}})()"
+                style="font-size:10px;padding:2px 7px;border:1px solid var(--accent);border-radius:4px;background:#fff;color:var(--accent);cursor:pointer;font-family:inherit;white-space:nowrap;">
+                적용
+              </button>
+            </div>
+            <div style="overflow:hidden;white-space:nowrap;font-size:11px;color:#475569;background:#f1f5f9;padding:4px 8px;border-radius:5px;user-select:all;">${kwStr}</div>
           </div>`;
         }).join('')}
       </div>`;
@@ -3409,6 +3474,14 @@ window.closeUexModal = function() {
         ...(s.keywordHistory || []),
         { keyword: updates.searchKeyword, date: new Date().toISOString() },
       ].slice(-10); // 최근 10개만 유지
+    }
+    if (updates.yupflKeyword) {
+      // 유입플 키워드도 검색키워드와 동일하게 변경 시점 기록을 남긴다(같은 문서를 덮어쓰기만
+      // 하면 이전 값이 사라지므로 별도 배열로 보관).
+      updates.yupflKeywordHistory = [
+        ...(s.yupflKeywordHistory || []),
+        { keyword: updates.yupflKeyword, date: new Date().toISOString() },
+      ].slice(-10);
     }
     const splitEls = [...document.querySelectorAll('.detail-split-kw-input')];
     if (splitEls.length) {
