@@ -2800,7 +2800,6 @@ window.closeUexModal = function() {
   let _slotsUnsub = null;
   function attachSlotsLiveSync() {
     if (_slotsUnsub) return; // 중복 구독 방지
-    const afterKey = allSlots.reduce((m, s) => (s._key && (!m || s._key > m)) ? s._key : m, null);
     let renderPending = false;
     const scheduleRerender = () => {
       if (renderPending) return;
@@ -2813,7 +2812,7 @@ window.closeUexModal = function() {
         renderReceipts(false);
       }, 300); // 여러 건이 짧은 시간에 몰려도 한 번만 다시 그리도록 묶음
     };
-    HA.subscribeSlots(afterKey, {
+    HA.subscribeSlots(allSlots, {
       onAdded(slot) {
         if (allSlots.some(s => s._key === slot._key)) return; // 안전장치(정상 흐름에선 중복 없음)
         allSlots.push(slot);

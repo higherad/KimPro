@@ -90,10 +90,13 @@ const HA = {
 
   // 목록 실시간 반영용 — getSlots()로 이미 받은 뒤 "이후 변경분"만 구독 (child 단위 이벤트라
   // 상태 하나 바뀔 때마다 목록 전체(수천 건, 수 MB)가 재전송되는 걸 피함).
-  // afterKey: getSlots() 결과 중 가장 큰 push key(=가장 최근 생성) — 이보다 뒤에 생긴 것만
-  // "추가"로 취급해 기존 데이터가 child_added로 다시 통째로 리플레이되는 것도 피한다.
-  async subscribeSlots(afterKey, { onAdded, onChanged, onRemoved } = {}) {
+  // currentSlots: getSlots() 결과 배열(호출부가 이미 들고 있는 것을 그대로 넘기면 됨) — 그중
+  // 가장 큰 push key(=가장 최근 생성) 이후에 생긴 것만 "추가"로 취급해, 기존 데이터가
+  // child_added로 다시 통째로 리플레이되는 것도 피한다. (호출부마다 afterKey를 직접 계산하지
+  // 않도록 이 함수 안에서 구함)
+  async subscribeSlots(currentSlots, { onAdded, onChanged, onRemoved } = {}) {
     await authReady;
+    const afterKey = (currentSlots || []).reduce((m, s) => (s._key && (!m || s._key > m)) ? s._key : m, null);
     const base = ref(db, PATHS.slots);
     const addedRef = afterKey ? query(base, orderByKey(), startAfter(afterKey)) : base;
     const offAdded   = onChildAdded(addedRef, snap => onAdded   && onAdded({ ...snap.val(), _key: snap.key }));
