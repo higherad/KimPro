@@ -4638,7 +4638,7 @@ window.closeUexModal = function() {
     const targetStatus = overlay.querySelector('input[name="reaccept-status"]:checked').value;
     const targetLabel = targetStatus === 'pending' ? '대기' : '접수';
 
-    const pending = allSlots.filter(s => s.status === 'pending' && s.mid);
+    const pending = allSlots.filter(s => (s.status === 'pending' || s.status === 'requeue') && s.mid);
     if (!pending.length) { resultEl.innerHTML = '<span style="color:var(--muted)">대기 상태인 슬롯이 없습니다.</span>'; return; }
 
     runBtn.disabled = true; runBtn.textContent = '⏳ 히스토리 조회 중...';
@@ -4678,7 +4678,10 @@ window.closeUexModal = function() {
     runBtn.textContent = `⏳ ${targetLabel} 처리 중... (0/${matched.length})`;
     let done = 0;
     for (const r of matched) {
-      const updates = { searchKeyword: r.matchKeyword, yupflKeyword: yupflKw, status: targetStatus };
+      // 재접수로 생긴 슬롯(isRequeue)을 대기로 되돌릴 땐 pending이 아니라 requeue로 유지
+      // — changeStatusTo()에 이미 있는 것과 동일한 규칙
+      const statusToSet = (targetStatus === 'pending' && r.slot.isRequeue) ? 'requeue' : targetStatus;
+      const updates = { searchKeyword: r.matchKeyword, yupflKeyword: yupflKw, status: statusToSet };
       await HA.updateSlot(r.slot._key, updates);
       const idx = allSlots.findIndex(x => x._key === r.slot._key);
       if (idx !== -1) Object.assign(allSlots[idx], updates);
