@@ -983,6 +983,10 @@ document.addEventListener('keydown', function(e) {
       const targets = slots.filter(s => {
         if (s.mid !== mid) return false;
         if (s.status === 'ended') return false;
+        // 시작일이 아직 안 된 슬롯은 제외 (bsLoadFromList의 futureSkipped 가드와 동일 규칙) —
+        // 없으면 같은 MID의 아직 시작 안 한 재접수 대기 슬롯까지 같이 강제종료돼 시작일보다
+        // 종료일이 빠른 상태가 됨
+        if (s.startDate && s.startDate > todayStr) return false;
         // 동일 조건 변경 방지
         if (didForce && didPause && s.status === 'force_stopped' && s.paused) return false;
         if (didForce && !didPause && s.status === 'force_stopped' && !s.paused) return false;
@@ -2898,9 +2902,13 @@ window.closeUexModal = function() {
   window.markKeywordChanged = async function(key) {
     await saveDetailFields(key);
     const idx = allSlots.findIndex(x => x._key === key);
+    // preChangeStatus는 로컬 캐시(allSlots)가 아니라 DB 최신값으로 읽는다 — 다른 세션에서 방금
+    // 강제종료 등으로 상태를 바꿨는데 로컬 캐시가 아직 그걸 못 받은 상태로 여길 열면, 캐시의 낡은
+    // 상태를 preChangeStatus로 저장했다가 나중에 키워드변경 성공 시 그 낡은 상태로 되돌려버려
+    // 강제종료가 조용히 취소되는 사고가 났었음.
+    const liveStatus = (await HA.getDoc(`kimpro/slots/${key}/status`)).val();
     const patch = { status: 'change' };
-    // 이미 변경 상태인 걸 다시 누른 경우엔 원래 상태를 덮어쓰지 않음
-    if (idx !== -1 && allSlots[idx].status !== 'change') patch.preChangeStatus = allSlots[idx].status;
+    if (liveStatus !== null && liveStatus !== 'change') patch.preChangeStatus = liveStatus;
     await HA.updateSlot(key, patch);
     if (idx !== -1) Object.assign(allSlots[idx], patch);
     await releaseDetailLock(key);
