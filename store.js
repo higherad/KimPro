@@ -4,8 +4,9 @@
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
-import { getDatabase, ref, query, orderByChild, equalTo,
-  set as _set, get as _get, push as _push, update as _update, remove as _remove }
+import { getDatabase, ref, query, orderByChild, orderByKey, equalTo, startAfter,
+  set as _set, get as _get, push as _push, update as _update, remove as _remove,
+  onChildAdded, onChildChanged, onChildRemoved }
   from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
 import { getAuth }
   from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
@@ -85,6 +86,20 @@ const HA = {
   async getSlotsByMid(mid) {
     const snapshot = await get(query(ref(db, PATHS.slots), orderByChild('mid'), equalTo(mid)));
     return snapToArray(snapshot);
+  },
+
+  // 목록 실시간 반영용 — getSlots()로 이미 받은 뒤 "이후 변경분"만 구독 (child 단위 이벤트라
+  // 상태 하나 바뀔 때마다 목록 전체(수천 건, 수 MB)가 재전송되는 걸 피함).
+  // afterKey: getSlots() 결과 중 가장 큰 push key(=가장 최근 생성) — 이보다 뒤에 생긴 것만
+  // "추가"로 취급해 기존 데이터가 child_added로 다시 통째로 리플레이되는 것도 피한다.
+  async subscribeSlots(afterKey, { onAdded, onChanged, onRemoved } = {}) {
+    await authReady;
+    const base = ref(db, PATHS.slots);
+    const addedRef = afterKey ? query(base, orderByKey(), startAfter(afterKey)) : base;
+    const offAdded   = onChildAdded(addedRef, snap => onAdded   && onAdded({ ...snap.val(), _key: snap.key }));
+    const offChanged = onChildChanged(base,   snap => onChanged && onChanged({ ...snap.val(), _key: snap.key }));
+    const offRemoved = onChildRemoved(base,   snap => onRemoved && onRemoved(snap.key));
+    return () => { offAdded(); offChanged(); offRemoved(); };
   },
 
   // 대량 등록 루프처럼 같은 userId로 addSlot을 여러 번 호출할 때, 매번 users 전체를
