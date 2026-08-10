@@ -3493,46 +3493,61 @@ window.closeUexModal = function() {
     const staticFlags = new Map(prods.map(p => [p.id, {daysMultiplied:p.daysMultiplied,fixedAlloc:p.fixedAlloc,autoBalance:p.autoBalance,splitProduct:p.splitProduct,deductOnly:p.deductOnly}]));
     const fixedDefaults = new Map(prods.map(p => [p.id, {fixedPct:p.fixedPct}]));
     const colorMap = new Map(prods.map(p => [p.id, p.color]));
+    // 최초 로드와 실시간 구독 콜백이 공유하는 처리 로직 — 원본 데이터를 받아 prods/prodGroups를 갱신
+    const applyProdsData = (loaded) => {
+      const arr = Array.isArray(loaded) ? loaded : Object.values(loaded);
+      prods = arr;
+      prods.forEach(p => {
+        const f = staticFlags.get(p.id); if(f) Object.assign(p, f);
+        const fd = fixedDefaults.get(p.id);
+        if (fd && p.fixedPct === undefined) p.fixedPct = fd.fixedPct;
+        if (!Array.isArray(p.missionRules)) p.missionRules = [];
+        if (colorMap.has(p.id)) p.color = colorMap.get(p.id);
+      });
+      // 저장된 설정에 없는(=이후에 새로 추가된) 기본 상품은 뒤에 붙여준다 — 예: 분할(yupfl2)
+      const loadedIds = new Set(prods.map(p => p.id));
+      DEFAULT_PRODS.forEach(dp => { if (!loadedIds.has(dp.id)) prods.push({ ...dp }); });
+      // 고정 그룹(찰리/차감/유입플/분할) 노출 순서는 저장된 옛 순서와 무관하게 항상
+      // DEFAULT_PRODS 기준(차감→유입플→분할→찰리)을 따르도록 정렬 — 일반 상품(p1~p8) 순서는 건드리지 않음
+      const fixedRank = new Map(DEFAULT_PRODS.filter(dp => FIXED_PROD_IDS.has(dp.id)).map((dp, i) => [dp.id, i]));
+      const fixedSorted = prods.filter(p => fixedRank.has(p.id)).sort((a, b) => fixedRank.get(a.id) - fixedRank.get(b.id));
+      let fi = 0;
+      prods = prods.map(p => fixedRank.has(p.id) ? fixedSorted[fi++] : p);
+      // 자동배분 대상(autoBalance!==false)인데 활성 상태끼리 ratio/kwPct 합이 10이 아니면 재배분 —
+      // 과거 버그(예: 찰리의 autoBalance:false)로 특정 상품 비율이 0으로 저장된 채 남아있던 계정을
+      // 수동으로 상품을 껐다 켜지 않아도 자동으로 복구시킨다.
+      const balanced = prods.filter(p => p.active && p.autoBalance !== false);
+      if (balanced.length) {
+        const ratioSum = Math.round(balanced.reduce((s,p)=>s+(p.ratio||0),0)*10)/10;
+        const kwSum    = Math.round(balanced.reduce((s,p)=>s+(p.kwPct||0),0)*10)/10;
+        if (ratioSum !== 10) rebalanceProdActive('ratio');
+        if (kwSum !== 10) rebalanceProdActive('kwPct');
+      }
+    };
+    const applyGroupsData = (loaded) => {
+      prodGroups = loaded ? (Array.isArray(loaded) ? loaded : Object.values(loaded)) : [];
+    };
     try {
       const [prodsSnap, groupsSnap] = await Promise.all([
         HA.getDoc(path + '/prods'),
         HA.getDoc(path + '/groups')
       ]);
-      if (prodsSnap.exists()) {
-        const loaded = prodsSnap.val();
-        const arr = Array.isArray(loaded) ? loaded : Object.values(loaded);
-        prods = arr;
-        prods.forEach(p => {
-          const f = staticFlags.get(p.id); if(f) Object.assign(p, f);
-          const fd = fixedDefaults.get(p.id);
-          if (fd && p.fixedPct === undefined) p.fixedPct = fd.fixedPct;
-          if (!Array.isArray(p.missionRules)) p.missionRules = [];
-          if (colorMap.has(p.id)) p.color = colorMap.get(p.id);
+      if (prodsSnap.exists()) applyProdsData(prodsSnap.val());
+      if (groupsSnap.exists()) applyGroupsData(groupsSnap.val());
+
+      // 실시간 반영 — 다른 세션에서 상품 유형 설정을 바꾸면 새로고침 없이 즉시 반영.
+      // subscribeDoc(onValue)은 구독 즉시 현재값으로 한 번 불리는데 그건 위에서 이미 처리한
+      // 초기값과 같으므로 건너뛴다.
+      const subscribeProdPath = (suffix, apply) => {
+        let first = true;
+        HA.subscribeDoc(path + suffix, (snap) => {
+          if (first) { first = false; return; }
+          apply(snap);
+          renderPS();
         });
-        // 저장된 설정에 없는(=이후에 새로 추가된) 기본 상품은 뒤에 붙여준다 — 예: 분할(yupfl2)
-        const loadedIds = new Set(prods.map(p => p.id));
-        DEFAULT_PRODS.forEach(dp => { if (!loadedIds.has(dp.id)) prods.push({ ...dp }); });
-        // 고정 그룹(찰리/차감/유입플/분할) 노출 순서는 계정에 저장된 옛 순서와 무관하게 항상
-        // DEFAULT_PRODS 기준(차감→유입플→분할→찰리)을 따르도록 정렬 — 일반 상품(p1~p8) 순서는 건드리지 않음
-        const fixedRank = new Map(DEFAULT_PRODS.filter(dp => FIXED_PROD_IDS.has(dp.id)).map((dp, i) => [dp.id, i]));
-        const fixedSorted = prods.filter(p => fixedRank.has(p.id)).sort((a, b) => fixedRank.get(a.id) - fixedRank.get(b.id));
-        let fi = 0;
-        prods = prods.map(p => fixedRank.has(p.id) ? fixedSorted[fi++] : p);
-        // 자동배분 대상(autoBalance!==false)인데 활성 상태끼리 ratio/kwPct 합이 10이 아니면 재배분 —
-        // 과거 버그(예: 찰리의 autoBalance:false)로 특정 상품 비율이 0으로 저장된 채 남아있던 계정을
-        // 수동으로 상품을 껐다 켜지 않아도 자동으로 복구시킨다.
-        const balanced = prods.filter(p => p.active && p.autoBalance !== false);
-        if (balanced.length) {
-          const ratioSum = Math.round(balanced.reduce((s,p)=>s+(p.ratio||0),0)*10)/10;
-          const kwSum    = Math.round(balanced.reduce((s,p)=>s+(p.kwPct||0),0)*10)/10;
-          if (ratioSum !== 10) rebalanceProdActive('ratio');
-          if (kwSum !== 10) rebalanceProdActive('kwPct');
-        }
-      }
-      if (groupsSnap.exists()) {
-        const loaded = groupsSnap.val();
-        prodGroups = Array.isArray(loaded) ? loaded : Object.values(loaded);
-      }
+      };
+      subscribeProdPath('/prods',  (snap) => { if (snap.exists()) applyProdsData(snap.val()); });
+      subscribeProdPath('/groups', (snap) => applyGroupsData(snap.exists() ? snap.val() : null));
     } catch(e) { console.error('loadProdSettings 오류:', e); }
   }
   function saveProdSettings() {

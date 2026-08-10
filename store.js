@@ -6,7 +6,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
 import { getDatabase, ref, query, orderByChild, orderByKey, equalTo, startAfter,
   set as _set, get as _get, push as _push, update as _update, remove as _remove,
-  onChildAdded, onChildChanged, onChildRemoved }
+  onValue, onChildAdded, onChildChanged, onChildRemoved }
   from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js";
 import { getAuth }
   from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
@@ -166,6 +166,12 @@ const HA = {
   async getDoc(path) { return get(ref(db, path)); },
   async setDoc(path, val) { return set(ref(db, path), val); },
   async removeDoc(path) { return remove(ref(db, path)); },
+  // 경로 하나를 실시간 구독 — 콜백엔 raw snapshot을 그대로 넘김(getDoc과 동일 형태).
+  // 반환값은 구독 해제 함수.
+  async subscribeDoc(path, callback) {
+    await authReady;
+    return onValue(ref(db, path), callback, e => console.error('subscribeDoc 구독 오류:', e));
+  },
 
   async getChargeAccounts(username) {
     const safeU = username.replace(/[.#$[\]/]/g, '_');
