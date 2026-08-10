@@ -3447,20 +3447,36 @@ window.closeUexModal = function() {
   let _apColor = '#06b6d4';
 
   function getProdSettingsPath() {
-    const cu = window.HA?.getCurrentUser?.();
-    return cu?.id ? `kimpro/prodSettings/${cu.id}` : null;
+    // 계정별이 아닌 전 계정 공용 설정 (예전엔 kimpro/prodSettings/{계정id}로 계정마다 따로 저장됨)
+    return 'kimpro/prodSettings';
   }
   async function loadProdSettings() {
     const path = getProdSettingsPath();
-    if (!path) return;
     const staticFlags = new Map(prods.map(p => [p.id, {daysMultiplied:p.daysMultiplied,fixedAlloc:p.fixedAlloc,autoBalance:p.autoBalance,splitProduct:p.splitProduct,deductOnly:p.deductOnly}]));
     const fixedDefaults = new Map(prods.map(p => [p.id, {fixedPct:p.fixedPct}]));
     const colorMap = new Map(prods.map(p => [p.id, p.color]));
     try {
-      const [prodsSnap, groupsSnap] = await Promise.all([
+      let [prodsSnap, groupsSnap] = await Promise.all([
         HA.getDoc(path + '/prods'),
         HA.getDoc(path + '/groups')
       ]);
+      if (!prodsSnap.exists()) {
+        // 공용 설정 최초 도입: 아직 공용 경로에 값이 없으면 kimpro 계정의 기존(계정별) 설정을 기본값으로 승격
+        const legacy = 'kimpro/prodSettings/kimpro-access';
+        const [legacyProds, legacyGroups] = await Promise.all([
+          HA.getDoc(legacy + '/prods'),
+          HA.getDoc(legacy + '/groups')
+        ]);
+        if (legacyProds.exists()) {
+          await HA.setDoc(path + '/prods', legacyProds.val());
+          if (legacyGroups.exists()) await HA.setDoc(path + '/groups', legacyGroups.val());
+          prodsSnap = legacyProds;
+          groupsSnap = legacyGroups;
+          // 이관 완료 — 옛 계정별 저장 경로(kimpro-access/kimpro-member)는 더 이상 안 쓰이므로 정리
+          HA.removeDoc('kimpro/prodSettings/kimpro-access').catch(()=>{});
+          HA.removeDoc('kimpro/prodSettings/kimpro-member').catch(()=>{});
+        }
+      }
       if (prodsSnap.exists()) {
         const loaded = prodsSnap.val();
         const arr = Array.isArray(loaded) ? loaded : Object.values(loaded);
@@ -3500,7 +3516,6 @@ window.closeUexModal = function() {
   }
   function saveProdSettings() {
     const path = getProdSettingsPath();
-    if (!path) return;
     const snapGroups = JSON.parse(JSON.stringify(prodGroups));
     const snapProds  = JSON.parse(JSON.stringify(prods));
     HA.setDoc(path + '/prods', snapProds).catch(()=>{});
