@@ -4679,20 +4679,24 @@ window.closeUexModal = function() {
     overlay.innerHTML = `
       <div class="modal-box" style="width:min(96vw,440px);">
         <div class="modal-title" style="display:flex;align-items:center;gap:6px;">🔁 대기 히스토리 재접수<span id="reaccept-help-btn" title="도움말" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--border);color:var(--text2);font-size:11px;font-weight:700;font-style:italic;font-family:Georgia,serif;cursor:pointer;flex-shrink:0;position:relative;top:1px;">i</span></div>
-        <div id="reaccept-help" style="display:none;font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:16px;">대기 슬롯 중 같은 MID의 키워드 히스토리가<br>설정한 기간 이내에 있는 건만 검색키워드를 채우고<br>선택한 상태로 변경합니다.</div>
+        <div id="reaccept-help" style="display:none;font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:16px;">대기 슬롯 중 같은 MID의 검색키워드 또는 유입플 키워드 히스토리가<br>각각 설정한 기간 이내에 있는 건만 해당 키워드를 채우고<br>선택한 상태로 변경합니다. (유입플 히스토리가 없으면 일괄 적용값 사용)</div>
         <div class="pmf" style="margin-bottom:12px;">
-          <label>히스토리 검색 일자 (일)</label>
-          <input type="number" id="reaccept-days" value="3" min="1" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;">
+          <label>① 검색키워드 히스토리 검색 일자 (일)</label>
+          <input type="number" id="reaccept-days-kw" value="3" min="1" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;">
         </div>
         <div class="pmf" style="margin-bottom:12px;">
-          <label>유입플 키워드</label>
+          <label>② 유입플 키워드 히스토리 검색 일자 (일)</label>
+          <input type="number" id="reaccept-days-yupfl" value="3" min="1" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;">
+        </div>
+        <div class="pmf" style="margin-bottom:12px;">
+          <label>③ 유입플 키워드 일괄 적용 (히스토리 없을 때)</label>
           <input type="text" id="reaccept-yupfl" value="" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;">
         </div>
         <div class="pmf" style="margin-bottom:4px;">
-          <label>변경할 상태</label>
+          <label>④ 변경할 상태</label>
           <div style="display:flex;gap:14px;font-size:13px;padding:2px 0;">
-            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="reaccept-status" value="accepted"> 접수</label>
             <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="reaccept-status" value="pending" checked> 대기</label>
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="reaccept-status" value="accepted"> 접수</label>
           </div>
         </div>
         <div id="reaccept-result" style="font-size:12px;margin-top:14px;"></div>
@@ -4715,8 +4719,9 @@ window.closeUexModal = function() {
     const runBtn   = overlay.querySelector('#reaccept-run-btn');
     const closeBtn = overlay.querySelector('#reaccept-close-btn');
     const resultEl = overlay.querySelector('#reaccept-result');
-    const days = parseInt(overlay.querySelector('#reaccept-days').value, 10);
-    if (!Number.isInteger(days) || days < 1) {
+    const daysKw = parseInt(overlay.querySelector('#reaccept-days-kw').value, 10);
+    const daysYupfl = parseInt(overlay.querySelector('#reaccept-days-yupfl').value, 10);
+    if (!Number.isInteger(daysKw) || daysKw < 1 || !Number.isInteger(daysYupfl) || daysYupfl < 1) {
       alert('히스토리 검색 일자를 1 이상의 숫자로 입력해주세요.');
       return;
     }
@@ -4735,26 +4740,42 @@ window.closeUexModal = function() {
     // 같은 MID는 한 번만 조회 (엑셀 다운로드의 키워드 히스토리 시트와 동일 방식)
     const uniqueMids = [...new Set(pending.map(s => s.mid))];
     const histMap = new Map();
-    await Promise.all(uniqueMids.map(async mid => { histMap.set(mid, await fullKeywordHistory(mid)); }));
+    const yupflHistMap = new Map();
+    await Promise.all(uniqueMids.map(async mid => {
+      const [kwHist, yupflHist] = await Promise.all([fullKeywordHistory(mid), fullYupflKeywordHistory(mid)]);
+      histMap.set(mid, kwHist);
+      yupflHistMap.set(mid, yupflHist);
+    }));
 
-    const cutoffDay = uexFmt(new Date(Date.now() - days * 24 * 3600 * 1000)); // 달력 기준 N일 전(포함)
+    // 검색키워드/유입플 각각 독립된 기간(일)으로 최근 히스토리 여부 판단
+    const cutoffDayKw = uexFmt(new Date(Date.now() - daysKw * 24 * 3600 * 1000));
+    const cutoffDayYupfl = uexFmt(new Date(Date.now() - daysYupfl * 24 * 3600 * 1000));
+    const withinCutoff = (h, cutoffDay) => !!(h && h.date && uexFmt(new Date(h.date)) >= cutoffDay);
     const rows = pending.map(s => {
-      const hist = histMap.get(s.mid) || [];
-      const top = hist[0];
-      const matched = !!(top && top.date && uexFmt(new Date(top.date)) >= cutoffDay);
-      return { slot: s, matched, matchKeyword: matched ? top.keyword : '', matchDate: top ? top.date : '', histCount: hist.length };
+      const kwTop = (histMap.get(s.mid) || [])[0];
+      const yTop  = (yupflHistMap.get(s.mid) || [])[0];
+      const kwMatched = withinCutoff(kwTop, cutoffDayKw);
+      const yMatched  = withinCutoff(yTop, cutoffDayYupfl);
+      // 검색키워드 히스토리 또는 유입플 히스토리, 둘 중 하나만 최근이어도 재접수 대상
+      const matched = kwMatched || yMatched;
+      return {
+        slot: s,
+        matched,
+        matchKeyword: kwMatched ? kwTop.keyword : (s.searchKeyword || ''),
+        matchYupfl: yMatched ? yTop.keyword : '',
+      };
     });
     const matched = rows.filter(r => r.matched);
 
     if (!matched.length) {
-      resultEl.innerHTML = `<span style="color:var(--muted)">대기 ${pending.length}건 중 최근 ${days}일 이내 히스토리가 있는 건이 없습니다.</span>`;
+      resultEl.innerHTML = `<span style="color:var(--muted)">대기 ${pending.length}건 중 최근 히스토리(검색키워드 ${daysKw}일 / 유입플 ${daysYupfl}일)가 있는 건이 없습니다.</span>`;
       runBtn.disabled = false; runBtn.textContent = '실행';
       closeBtn.disabled = false;
       window.reacceptRunning = false;
       return;
     }
 
-    if (!confirm(`대기 ${pending.length}건 중 ${matched.length}건이 매칭되었습니다.\n검색키워드를 채우고 "${targetLabel}" 상태로 변경하시겠습니까?`)) {
+    if (!confirm(`대기 ${pending.length}건 중 ${matched.length}건이 매칭되었습니다.\n검색키워드/유입플 키워드를 채우고 "${targetLabel}" 상태로 변경하시겠습니까?`)) {
       runBtn.disabled = false; runBtn.textContent = '실행';
       closeBtn.disabled = false;
       window.reacceptRunning = false;
@@ -4765,7 +4786,7 @@ window.closeUexModal = function() {
     let done = 0;
     for (const r of matched) {
       const statusToSet = resolveRequeueStatus(r.slot, targetStatus);
-      const updates = { searchKeyword: r.matchKeyword, yupflKeyword: yupflKw, status: statusToSet };
+      const updates = { searchKeyword: r.matchKeyword, yupflKeyword: r.matchYupfl || yupflKw, status: statusToSet };
       await HA.updateSlot(r.slot._key, updates);
       const idx = allSlots.findIndex(x => x._key === r.slot._key);
       if (idx !== -1) Object.assign(allSlots[idx], updates);
