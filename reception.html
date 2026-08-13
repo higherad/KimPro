@@ -4581,7 +4581,8 @@ window.closeUexModal = function() {
           memo: '',
           unitPrice: 0, // uex 엑셀 접수엔 userId 컬럼이 없어 getUserUnitPrice('')가 매 행마다 users 전체를 읽던 것을 방지 (결과는 항상 0으로 동일)
         });
-        allSlots.unshift(result);
+        // 실시간 리스너(onAdded)가 같은 슬롯을 먼저 넣어놨을 수 있어 중복 추가 방지
+        if (!allSlots.some(s => s._key === result._key)) allSlots.unshift(result);
         success++;
       } catch {
         fail++;
