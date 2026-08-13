@@ -441,7 +441,10 @@ async function downloadRankTable() {
 <div id="stop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
   <div style="background:#fff;border-radius:16px;width:1100px;max-width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">
-      <div style="font-size:15px;font-weight:700;">🛑 강제종료</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:15px;font-weight:700;">🛑 강제종료</div>
+        <span class="bs-srv-badge bs-srv-chk" id="bs-srv-badge">⏳ 서버 확인 중</span>
+      </div>
       <button id="bs-close-btn" onclick="closeStopModal()" style="border:none;background:#f1f5f9;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1;">✕</button>
     </div>
   <div style="padding:20px 24px;">
@@ -453,10 +456,6 @@ async function downloadRankTable() {
       .bs-card-head { background:#f8fafc; padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
       .bs-card-title { font-size:12px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; }
       .bs-card-body { padding:14px; }
-      .bs-fg { margin-bottom:10px; }
-      .bs-fg label { display:block; font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
-      .bs-fg input[type=text] { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:inherit; color:var(--text); outline:none; transition:border-color .2s; }
-      .bs-fg input[type=text]:focus { border-color:#7b1fa2; }
       .bs-toggle-grp { display:flex; gap:7px; margin-bottom:12px; }
       .bs-tog-lbl { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:7px; border:1.5px solid var(--border); border-radius:7px; cursor:pointer; font-size:11px; font-weight:600; color:var(--text2); transition:all .15s; user-select:none; }
       .bs-tog-lbl.pause-on { background:#fef9c3; border-color:#d69e2e; color:#b7791f; }
@@ -535,32 +534,9 @@ async function downloadRankTable() {
       <!-- 좌: 입력 폼 -->
       <div class="bs-card">
         <div class="bs-card-head">
-          <span class="bs-card-title">➕ MID 추가</span>
-          <span class="bs-srv-badge bs-srv-chk" id="bs-srv-badge">⏳ 서버 확인 중</span>
+          <span class="bs-card-title">📋 MID 등록</span>
         </div>
         <div class="bs-card-body">
-          <div class="bs-fg">
-            <label>MID</label>
-            <input type="text" id="bs-mid" placeholder="예: 1839711962">
-          </div>
-          <div class="bs-fg">
-            <label>Pcode (선택)</label>
-            <input type="text" id="bs-pcode" placeholder="비우면 MID의 전체 캠페인 대상">
-          </div>
-          <div class="bs-fg">
-            <label>메모 (선택)</label>
-            <input type="text" id="bs-memo" placeholder="비우면 오늘 날짜 자동 입력">
-          </div>
-          <div class="bs-sec-lbl">처리 작업</div>
-          <div class="bs-toggle-grp">
-            <div class="bs-tog-lbl" id="bs-lbl-pause" onclick="bsToggleAction('pause')">⏸ 임시중단B</div>
-            <div class="bs-tog-lbl" id="bs-lbl-force" onclick="bsToggleAction('force')">🛑 강제종료</div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="bs-btn-add" style="flex:1;" onclick="bsAddEntry()">➕ 추가</button>
-            <button class="bs-btn-add" style="flex:1;background:#0369a1;" onclick="bsLoadFromList()">📋 불러오기</button>
-          </div>
-          <hr class="bs-divider">
           <div class="bs-sec-lbl sec-lbl-row">
             <span>📂 엑셀 등록</span>
             <a class="excel-tpl-btn purple" href="양식/강제종료_양식.xlsx" download="강제종료_양식.xlsx" title="양식 다운로드"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2h-4v11H5l7 7 7-7h-5V2z"/></svg></a>
@@ -571,6 +547,13 @@ async function downloadRankTable() {
             <div class="uz-hint">MID / Pcode(선택) / 임시중단B(O) / 강제종료(O) / 메모</div>
           </div>
           <input type="file" id="bs-file" accept=".xlsx,.xls" style="display:none" onchange="bsHandleExcel(this.files[0])">
+          <hr class="bs-divider">
+          <div class="bs-sec-lbl">처리 작업</div>
+          <div class="bs-toggle-grp">
+            <div class="bs-tog-lbl" id="bs-lbl-pause" onclick="bsToggleAction('pause')">⏸ 임시중단B</div>
+            <div class="bs-tog-lbl" id="bs-lbl-force" onclick="bsToggleAction('force')">🛑 강제종료</div>
+          </div>
+          <button class="bs-btn-add" style="width:100%;background:#0369a1;" onclick="bsLoadFromList()">📋 리스트에서 불러오기</button>
         </div>
       </div>
 
@@ -631,7 +614,7 @@ async function downloadRankTable() {
           <div class="bs-log" id="bs-log">
             <div class="bs-log-line log-info">
               <span class="bs-log-time">--:--:--</span>
-              <span class="bs-log-msg">MID를 추가하고 실행하세요.</span>
+              <span class="bs-log-msg">MID를 불러오거나 엑셀로 등록하고 실행하세요.</span>
             </div>
           </div>
         </div>
@@ -684,23 +667,6 @@ document.addEventListener('keydown', function(e) {
       bsForce = !bsForce;
       document.getElementById('bs-lbl-force').classList.toggle('force-on', bsForce);
     }
-  };
-
-  window.bsAddEntry = function() {
-    const mid   = document.getElementById('bs-mid').value.trim();
-    const pcode = document.getElementById('bs-pcode').value.trim();
-    const memo  = document.getElementById('bs-memo').value.trim();
-    if (!mid) { alert('MID를 입력해주세요.'); return; }
-    if (!bsPause && !bsForce && !memo) { alert('처리 작업을 선택하거나 메모를 입력해주세요.'); return; }
-    if (bsEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { alert('이미 등록된 MID/Pcode 조합입니다.'); return; }
-    bsEntries.push({ mid, pcode, memo, do_pause: bsPause, do_force: bsForce, status: 'ready', result: '' });
-    bsSave();
-    document.getElementById('bs-mid').value = '';
-    document.getElementById('bs-pcode').value = '';
-    document.getElementById('bs-memo').value = '';
-    bsRender();
-    const act = [bsPause?'임시중단B':'', bsForce?'강제종료':''].filter(Boolean).join('+') || '메모만';
-    bsLog(`추가: ${mid}${pcode?' / '+pcode:''} — ${act}`, 'info');
   };
 
   window.bsRemoveChecked = function() {
@@ -1118,7 +1084,10 @@ import HA from './store.js';
 <div id="kw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
   <div style="background:#fff;border-radius:16px;width:1100px;max-width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">
-      <div style="font-size:15px;font-weight:700;">🔤 키워드 변경</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:15px;font-weight:700;">🔤 키워드 변경</div>
+        <span class="kw-srv-badge kw-srv-chk" id="kw-srv-badge">⏳ 서버 확인 중</span>
+      </div>
       <button id="kw-close-btn" onclick="closeKwModal()" style="border:none;background:#f1f5f9;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1;">✕</button>
     </div>
   <div style="padding:20px 24px;">
@@ -1133,12 +1102,6 @@ import HA from './store.js';
       .kw-type-badge { display:inline-block; padding:1px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; }
       .kw-type-pcode { background:#e9d8fd; color:#553c9a; }
       .kw-type-mid   { background:#feebc8; color:#c05621; }
-      .kw-fg { margin-bottom:10px; }
-      .kw-fg label { display:block; font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px; }
-      .kw-fg input[type=text], .kw-fg textarea { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:inherit; color:var(--text); outline:none; transition:border-color .2s; box-sizing:border-box; }
-      .kw-fg textarea { resize:none; height:60px; }
-      .kw-fg input[type=text]:focus, .kw-fg textarea:focus { border-color:#0277bd; }
-      .kw-hint { font-size:10.5px; color:var(--muted); margin-top:3px; }
       .kw-btn-add { width:100%; padding:8px; border:none; border-radius:7px; background:#059669; color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
       .kw-btn-add:hover { background:#047857; }
       .kw-upload-zone { border:2px dashed var(--border); border-radius:9px; padding:14px; text-align:center; cursor:pointer; transition:all .2s; background:#fafbfc; margin-top:4px; }
@@ -1209,32 +1172,9 @@ import HA from './store.js';
       <!-- 좌: 입력 폼 -->
       <div class="kw-card">
         <div class="kw-card-head">
-          <span class="kw-card-title">➕ 캠페인 추가</span>
-          <span class="kw-srv-badge kw-srv-chk" id="kw-srv-badge">⏳ 서버 확인 중</span>
+          <span class="kw-card-title">📋 캠페인 등록</span>
         </div>
         <div class="kw-card-body">
-          <div class="kw-fg">
-            <label>MID</label>
-            <input type="text" id="kw-mid" placeholder="예: 1839711962">
-          </div>
-          <div class="kw-fg">
-            <label>Pcode (선택)</label>
-            <input type="text" id="kw-pcode" placeholder="비우면 MID 전체 대상, 여러 개는 콤마로 구분">
-          </div>
-          <div class="kw-fg">
-            <label>키워드</label>
-            <textarea id="kw-keywords"></textarea>
-            <div class="kw-hint">쉼표(,)로 구분 — A/B 동일하게 입력됩니다</div>
-          </div>
-          <div class="kw-fg">
-            <label>메모 (선택)</label>
-            <input type="text" id="kw-memo" placeholder="비우면 오늘 날짜 자동 입력">
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="kw-btn-add" style="flex:1;" onclick="kwAddEntry()">➕ 추가</button>
-            <button class="kw-btn-add" style="flex:1;background:#0369a1;" onclick="kwLoadFromList()">📋 불러오기</button>
-          </div>
-          <hr class="kw-divider">
           <div class="kw-sec-lbl sec-lbl-row">
             <span>📂 엑셀 등록</span>
             <a class="excel-tpl-btn green" href="양식/키워드변경_양식.xlsx" download="키워드변경_양식.xlsx" title="양식 다운로드"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2h-4v11H5l7 7 7-7h-5V2z"/></svg></a>
@@ -1245,6 +1185,8 @@ import HA from './store.js';
             <div class="uz-hint">MID / Pcode(선택) / 키워드 / 메모(선택)</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
+          <hr class="kw-divider">
+          <button class="kw-btn-add" style="width:100%;background:#0369a1;" onclick="kwLoadFromList()">📋 리스트에서 불러오기</button>
         </div>
       </div>
 
@@ -1312,7 +1254,7 @@ import HA from './store.js';
           <div class="kw-log" id="kw-log">
             <div class="kw-log-line log-info">
               <span class="kw-log-time">--:--:--</span>
-              <span class="kw-log-msg">캠페인을 추가하고 실행하세요.</span>
+              <span class="kw-log-msg">캠페인을 불러오거나 엑셀로 등록하고 실행하세요.</span>
             </div>
           </div>
         </div>
@@ -1339,24 +1281,6 @@ window.closeKwModal = function() {
 
   function kwEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function kwSave() { if (window.kwFbSave) window.kwFbSave(kwEntries); }
-
-  window.kwAddEntry = function() {
-    const mid      = document.getElementById('kw-mid').value.trim();
-    const pcode    = document.getElementById('kw-pcode').value.trim();
-    const keywords = document.getElementById('kw-keywords').value.trim();
-    const memo     = document.getElementById('kw-memo').value.trim();
-    if (!mid) { alert('MID를 입력해주세요.'); return; }
-    if (!keywords) { alert('키워드를 입력해주세요.'); return; }
-    if (kwEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { alert('이미 등록된 MID/Pcode 조합입니다.'); return; }
-    kwEntries.push({ mid, pcode, keywords, memo, status: 'ready', result: '' });
-    kwSave();
-    document.getElementById('kw-mid').value = '';
-    document.getElementById('kw-pcode').value = '';
-    document.getElementById('kw-keywords').value = '';
-    document.getElementById('kw-memo').value = '';
-    kwRender();
-    kwLog(`추가: ${mid}${pcode?' / '+pcode:''} — ${keywords.split(',').length}개 키워드`, 'info');
-  };
 
   window.kwRemoveChecked = function() {
     const checked = kwEntries.filter(e => e.checked);
