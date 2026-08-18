@@ -1494,17 +1494,20 @@ window.closeKwModal = function() {
           const hasHdr   = isNaN(Number(hdr[0]));
           const midCol   = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 0;
           const pcodeCol = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : -1;
-          const kwCol    = hasHdr ? hdr.findIndex(h => /키워드/i.test(h)) : 1;
+          const yupflCol = hasHdr ? hdr.findIndex(h => /유입플/.test(h)) : -1;
+          // "유입플키워드" 헤더도 /키워드/에 걸리므로 그 열은 제외하고 찾는다
+          const kwCol    = hasHdr ? hdr.findIndex((h, i) => /키워드/i.test(h) && i !== yupflCol) : 1;
           const start    = hasHdr ? 1 : 0;
           let added = 0, skipped = 0;
           for (let r = start; r < rows.length; r++) {
-            const row      = rows[r];
-            const mid      = String(row[midCol] || '').trim();
-            const pcode    = pcodeCol >= 0 ? String(row[pcodeCol]||'').trim() : '';
-            const keywords = kwCol    >= 0 ? String(row[kwCol]   ||'').trim() : '';
-            if (!mid || !keywords) { skipped++; continue; }
+            const row           = rows[r];
+            const mid           = String(row[midCol] || '').trim();
+            const pcode         = pcodeCol >= 0 ? String(row[pcodeCol]||'').trim() : '';
+            const keywords      = kwCol    >= 0 ? String(row[kwCol]   ||'').trim() : '';
+            const yupflKeywords = yupflCol >= 0 ? String(row[yupflCol]||'').trim() : '';
+            if (!mid || (!keywords && !yupflKeywords)) { skipped++; continue; }
             if (kwEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { skipped++; continue; }
-            kwEntries.push({ mid, pcode, keywords, yupflKeywords: '', status: 'ready', result: '' });
+            kwEntries.push({ mid, pcode, keywords, yupflKeywords, status: 'ready', result: '' });
             added++;
           }
           kwSave(); kwRender();
@@ -3044,7 +3047,7 @@ window.closeUexModal = function() {
         ${splitKeywordFieldsHtml(s, splitProd, escV, escVAttr)}
         <div class="modal-footer">
           <button class="btn-cancel" onclick="closeDetailModal('${key}')">닫기</button>
-          ${s.isRequeue ? `<button class="btn-save" style="background:${kwChangeLocked?'var(--muted)':'#db2777'};" ${kwChangeLocked?'disabled':''} onclick="markKeywordChanged('${key}')">변경접수</button>` : ''}
+          ${s.isRequeue ? `<button ${kwChangeLocked?'disabled':`onclick="markKeywordChanged('${key}')"`} style="font-size:11px;padding:6px 10px;border:1px solid ${kwChangeLocked?'var(--border)':'#f9a8d4'};border-radius:6px;background:${kwChangeLocked?'#f8fafc':'#fdf2f8'};color:${kwChangeLocked?'#c0c8d4':'#db2777'};cursor:${kwChangeLocked?'not-allowed':'pointer'};font-family:inherit;">변경</button>` : ''}
           <button class="btn-save" style="background:rgba(59,130,246,1);" onclick="acceptFromDetail('${key}')">접수</button>
         </div>
       </div>`;
