@@ -1346,7 +1346,8 @@ window.closeKwModal = function() {
       return `<tr id="kw-row-${i}" class="${e.checked?'kw-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="kwToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#0277bd;cursor:pointer;"></td>
         <td>
-          <div class="kw-td-id">${kwEsc(e.mid)}${e.pcode?` <span class="kw-type-badge kw-type-pcode">${kwEsc(e.pcode)}</span>`:''}</div>
+          <div class="kw-td-id">${kwEsc(e.mid)}</div>
+          ${e.pcode?`<div style="margin-top:2px;"><span class="kw-type-badge kw-type-pcode" title="${kwEsc(e.pcode)}" style="cursor:default;">Pcode</span></div>`:''}
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
         <td>${kwCountBadge(e.keywords)}</td>
