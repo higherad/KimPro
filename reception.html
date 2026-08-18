@@ -1397,9 +1397,30 @@ window.closeKwModal = function() {
     }
   }
 
+  // 재접수 대기(requeue)/변경(change) 상태인 슬롯에만 검색키워드·유입플키워드를 최신화한다 —
+  // 그 외 상태(대기/접수/승인 등)는 엑셀 일괄 등록이 건드리면 안 되므로 그대로 둔다.
+  // 매크로 하나만 성공해도(비즈핏만 있는 항목 등) 그 필드는 실제로 바뀐 값이니 바로 반영한다.
+  function kwSyncSlotKeyword(mid, field, value) {
+    const slots = window.getAllSlots ? window.getAllSlots() : [];
+    slots.filter(s => s.mid === mid && (s.status === 'requeue' || s.status === 'change'))
+      .forEach(slot => {
+        window.HA.updateSlot(slot._key, { [field]: value });
+        slot[field] = value;
+      });
+  }
+
   // 비즈핏(_bizOk/_bizMsg)과 유입플(_yupflOk/_yupflMsg) 결과를 합쳐 행 하나의 상태/메시지로 정리.
   // 해당 항목에 실제로 적용됐던 매크로가 전부 성공해야 최종 success — 그때만 재접수 change 상태를 되돌린다.
   function kwFinalizeEntry(entry) {
+    if (entry._bizOk === true && !entry._bizSynced) {
+      kwSyncSlotKeyword(entry.mid, 'searchKeyword', entry.keywords);
+      entry._bizSynced = true;
+    }
+    if (entry._yupflOk === true && !entry._yupflSynced) {
+      kwSyncSlotKeyword(entry.mid, 'yupflKeyword', entry.yupflKeywords);
+      entry._yupflSynced = true;
+    }
+
     const needsBiz   = !!entry.keywords;
     const needsYupfl = !!entry.yupflKeywords;
     const bizDone    = !needsBiz   || entry._bizOk   !== undefined;
@@ -1421,14 +1442,15 @@ window.closeKwModal = function() {
     entry.status = allOk ? 'success' : 'fail';
     entry.result = parts.join(' / ');
     if (entry.status === 'success') {
+      // change 상태 슬롯만 상태를 원래대로 되돌린다 — requeue 슬롯은 대기 상태 그대로 두고
+      // 키워드만 최신화된 상태로 남는다(별도 접수/승인 절차는 기존 흐름을 그대로 따라야 함).
       const slots = window.getAllSlots ? window.getAllSlots() : [];
-      const slot = slots.find(s => s.mid === entry.mid && s.status === 'change');
-      if (slot) {
+      slots.filter(s => s.mid === entry.mid && s.status === 'change').forEach(slot => {
         // 대기/재접수|대기 → 접수, 접수/재접수|접수 → 접수(그대로), 승인/재접수|승인 → 승인(그대로)
         const target = slot.preChangeStatus === 'active' ? 'active' : 'accepted';
         window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
         slot.status = target; delete slot.preChangeStatus;
-      }
+      });
     }
   }
 
@@ -1467,6 +1489,7 @@ window.closeKwModal = function() {
     runTargets.forEach(e => {
       e.status = 'running'; e.result = '';
       e._bizOk = undefined; e._bizMsg = ''; e._yupflOk = undefined; e._yupflMsg = '';
+      e._bizSynced = false; e._yupflSynced = false;
     });
     kwRender();
     kwLog(`▶ 시작 — ${runTargets.length}개 캠페인${distribute ? ' (배분 모드)' : ''}${skipNote}`, 'info');
