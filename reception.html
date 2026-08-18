@@ -1507,10 +1507,10 @@ window.closeKwModal = function() {
 
     // 매크로 하나가 서버 오류로 죽어도 다른 매크로(비즈핏/유입플)는 계속 진행되도록
     // 에러를 여기서 흡수하고, 그 매크로가 담당하던 항목들만 실패 처리한다.
-    async function runMacroBatch(url, targets, payload, okField, msgField, label) {
+    async function runMacroBatch(url, targets, payload, matchFn, okField, msgField, label) {
       try {
         await kwRunStream(url, payload, r => {
-          const entry = kwEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||''));
+          const entry = matchFn(r);
           if (entry) {
             entry[okField] = r.success; entry[msgField] = r.message;
             kwFinalizeEntry(entry);
@@ -1534,13 +1534,20 @@ window.closeKwModal = function() {
     const tasks = [];
     if (bizTargets.length) {
       const payload = bizTargets.map(e => ({ mid: e.mid, pcode: e.pcode||'', keywords: e.keywords, distribute }));
-      tasks.push(runMacroBatch(`${SERVER}/process-stream`, bizTargets, payload, '_bizOk', '_bizMsg', '비즈핏'));
+      tasks.push(runMacroBatch(`${SERVER}/process-stream`, bizTargets, payload,
+        r => kwEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||'')),
+        '_bizOk', '_bizMsg', '비즈핏'));
     }
     if (yupflTargets.length) {
       const payload = yupflTargets.map(e => ({ mid: e.mid, keywords: e.yupflKeywords }));
+      // 유입플 사이트는 pcode 개념 자체가 없어 서버 응답이 항상 pcode:"" 로 옴 — 비즈핏과 같은
+      // (mid,pcode) 매칭을 쓰면 entry.pcode가 채워진 행은 여기서 못 찾아 영원히 진행중에 멈춰있었음.
+      // 반드시 mid만으로 매칭한다.
       // ponytail: 부분 실패 후 재실행하면 이미 성공한 쪽(비즈핏 또는 유입플)도 다시 시도됨 —
       // 필요해지면 _bizOk/_yupflOk별로 재실행 대상을 나눠서 스킵 추가.
-      tasks.push(runMacroBatch(`${SERVER}/yupfl-process-stream`, yupflTargets, payload, '_yupflOk', '_yupflMsg', '유입플'));
+      tasks.push(runMacroBatch(`${SERVER}/yupfl-process-stream`, yupflTargets, payload,
+        r => kwEntries.find(e => e.mid === r.mid),
+        '_yupflOk', '_yupflMsg', '유입플'));
     }
     await Promise.all(tasks);
 
