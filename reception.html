@@ -1182,7 +1182,7 @@ import HA from './store.js';
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / Pcode(선택) / 키워드</div>
+            <div class="uz-hint">MID / Pcode(선택) / 비즈핏 키워드 / 유입플 키워드</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
           <hr class="kw-divider">
@@ -1319,9 +1319,8 @@ window.closeKwModal = function() {
     const noKw = sel.filter(e => !e.keywords).length;
     document.getElementById('kw-sum-count').textContent = sel.length;
     document.getElementById('kw-sum-nokw').textContent = noKw;
-    // 비즈핏 키워드가 없는 항목은 실행 시 자동으로 건너뛰므로(유입플 키워드만 있는 항목 등)
-    // 전체 실행을 막지 않는다 — 실행 가능한 항목이 하나도 없을 때만 버튼을 비활성화.
-    document.getElementById('kw-btn-run').disabled = sel.length === 0 || noKw === sel.length;
+    // 비즈핏 키워드가 없어도 유입플 키워드만으로 실행 가능한 항목이 하나라도 있으면 막지 않는다.
+    document.getElementById('kw-btn-run').disabled = sel.length === 0 || !sel.some(e => e.keywords || e.yupflKeywords);
   }
 
   window.kwFilterList = function(val) { kwSearchQ = val.trim().toLowerCase(); kwRender(); };
@@ -1368,103 +1367,141 @@ window.closeKwModal = function() {
     area.scrollTop = area.scrollHeight;
   }
 
+  // SSE(/process-stream 형식) 응답을 소비하며 entry_result마다 onResult 호출 — 비즈핏/유입플 공용
+  async function kwRunStream(url, payload, onResult) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries: payload }),
+    });
+    if (!res.ok) throw new Error(`서버 응답 오류 (${res.status})`);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let data;
+        try { data = JSON.parse(line.slice(6)); } catch { continue; }
+        if (data.ping) continue;
+        if (data.entry_result) onResult(data.entry_result);
+        if (data.error) throw new Error(data.error);
+        if (data.done) return;
+      }
+    }
+  }
+
+  // 비즈핏(_bizOk/_bizMsg)과 유입플(_yupflOk/_yupflMsg) 결과를 합쳐 행 하나의 상태/메시지로 정리.
+  // 해당 항목에 실제로 적용됐던 매크로가 전부 성공해야 최종 success — 그때만 재접수 change 상태를 되돌린다.
+  function kwFinalizeEntry(entry) {
+    const parts = [];
+    let allOk = true;
+    if (entry._bizOk !== undefined)   { parts.push(`비즈핏: ${entry._bizMsg}`);   allOk = allOk && entry._bizOk; }
+    if (entry._yupflOk !== undefined) { parts.push(`유입플: ${entry._yupflMsg}`); allOk = allOk && entry._yupflOk; }
+    entry.status = allOk ? 'success' : 'fail';
+    entry.result = parts.join(' / ');
+    if (entry.status === 'success') {
+      const slots = window.getAllSlots ? window.getAllSlots() : [];
+      const slot = slots.find(s => s.mid === entry.mid && s.status === 'change');
+      if (slot) {
+        // 대기/재접수|대기 → 접수, 접수/재접수|접수 → 접수(그대로), 승인/재접수|승인 → 승인(그대로)
+        const target = slot.preChangeStatus === 'active' ? 'active' : 'accepted';
+        window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
+        slot.status = target; delete slot.preChangeStatus;
+      }
+    }
+  }
+
   window.kwStartProcess = async function() {
     const checked = kwEntries.filter(e => e.checked);
     if (!checked.length) { alert('항목을 선택해주세요.'); return; }
-    // 비즈핏 키워드가 빈칸인 항목은 매크로가 처리할 대상이 없으므로(유입플 키워드만 있는 항목 등)
-    // 실행 목록에서 제외 — 다른 선택 항목까지 막지 않고 그 항목만 건너뛴다.
-    const doneSkipped = checked.filter(e => e.status === 'success').length;
-    const noKwSkipped = checked.filter(e => e.status !== 'success' && !e.keywords).length;
-    const selected    = checked.filter(e => e.status !== 'success' && e.keywords);
-    if (!selected.length) {
-      alert(noKwSkipped
-        ? '선택한 항목에 비즈핏 키워드가 없습니다. (유입플 키워드만으로는 아직 자동 변경을 지원하지 않습니다)'
-        : '선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)');
+    const doneSkipped  = checked.filter(e => e.status === 'success').length;
+    const notDone      = checked.filter(e => e.status !== 'success');
+    const bizTargets   = notDone.filter(e => e.keywords);
+    const yupflTargets = notDone.filter(e => e.yupflKeywords);
+    const runTargets   = [...new Set([...bizTargets, ...yupflTargets])];
+
+    if (!runTargets.length) {
+      alert(doneSkipped
+        ? '선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)'
+        : '실행할 비즈핏/유입플 키워드가 없습니다.');
       return;
     }
+
     const distribute = document.getElementById('kw-distribute-global').checked;
-    const summary = selected.map(e => `  · ${e.mid}${e.pcode?' / '+e.pcode:''}`).join('\n');
-    const skipNoteParts = [];
-    if (doneSkipped) skipNoteParts.push(`완료 ${doneSkipped}건`);
-    if (noKwSkipped) skipNoteParts.push(`비즈핏 키워드 없음 ${noKwSkipped}건`);
-    const skipNote = skipNoteParts.length ? ` (${skipNoteParts.join(', ')} 건너뜀)` : '';
-    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — Pcode 개수만큼 키워드 균등 배분)' : ''}\n\n${summary}\n\n총 ${selected.length}건${skipNote}`)) return;
+    const summary = runTargets.map(e => {
+      const tags = [];
+      if (e.keywords) tags.push('비즈핏');
+      if (e.yupflKeywords) tags.push('유입플');
+      return `  · ${e.mid}${e.pcode?' / '+e.pcode:''} (${tags.join('+')})`;
+    }).join('\n');
+    const skipNote = doneSkipped ? ` (완료 ${doneSkipped}건 건너뜀)` : '';
+    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — Pcode 개수만큼 키워드 균등 배분, 비즈핏에만 적용)' : ''}\n\n${summary}\n\n총 ${runTargets.length}건${skipNote}`)) return;
 
     window.kwRunning = true;
     const kwCloseBtn = document.getElementById('kw-close-btn');
     if (kwCloseBtn) { kwCloseBtn.disabled = true; kwCloseBtn.style.opacity = '0.3'; kwCloseBtn.style.cursor = 'not-allowed'; }
     document.getElementById('kw-btn-run').disabled = true;
     document.getElementById('kw-prog-wrap').style.display = 'block';
-    const payload = selected.map(e => ({ mid: e.mid, pcode: e.pcode||'', keywords: e.keywords, distribute }));
-    selected.forEach(e => { e.status = 'running'; e.result = ''; });
+
+    runTargets.forEach(e => {
+      e.status = 'running'; e.result = '';
+      e._bizOk = undefined; e._bizMsg = ''; e._yupflOk = undefined; e._yupflMsg = '';
+    });
     kwRender();
-    kwLog(`▶ 시작 — ${selected.length}개 캠페인${distribute ? ' (배분 모드)' : ''}${skipNote}`, 'info');
+    kwLog(`▶ 시작 — ${runTargets.length}개 캠페인${distribute ? ' (배분 모드)' : ''}${skipNote}`, 'info');
     document.getElementById('kw-prog-bar').style.width = '10%';
     document.getElementById('kw-prog-txt').textContent = '로그인 중...';
 
-    let successCnt = 0, failCnt = 0, processed = 0;
+    const totalOps = bizTargets.length + yupflTargets.length;
+    let processed = 0;
+    function bumpProgress() {
+      processed++;
+      const pct = 10 + Math.round((processed / totalOps) * 90);
+      document.getElementById('kw-prog-bar').style.width = pct + '%';
+      document.getElementById('kw-prog-txt').textContent = `${processed} / ${totalOps} 처리 중...`;
+    }
+
+    let successCnt = 0, failCnt = 0;
     try {
-      const res = await fetch(`${SERVER}/process-stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entries: payload }),
-      });
-      if (!res.ok) throw new Error(`서버 응답 오류 (${res.status})`);
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      outer: while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          let data;
-          try { data = JSON.parse(line.slice(6)); } catch { continue; }
-          if (data.ping) continue;
-          if (data.entry_result) {
-            const r = data.entry_result;
-            const entry = kwEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||''));
-            if (entry) {
-              entry.result = r.message;
-              if (r.success) {
-                entry.status = 'success'; successCnt++;
-                kwLog(`✅ ${r.mid}${r.pcode?' / '+r.pcode:''} — ${r.message}`, 'success');
-                const slots = window.getAllSlots ? window.getAllSlots() : [];
-                const slot = slots.find(s => s.mid === r.mid && s.status === 'change');
-                if (slot) {
-                  // 대기/재접수|대기 → 접수, 접수/재접수|접수 → 접수(그대로), 승인/재접수|승인 → 승인(그대로)
-                  const target = slot.preChangeStatus === 'active' ? 'active' : 'accepted';
-                  window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
-                  slot.status = target; delete slot.preChangeStatus;
-                }
-              } else {
-                entry.status = 'fail'; failCnt++;
-                kwLog(`❌ ${r.mid}${r.pcode?' / '+r.pcode:''} — ${r.message}`, 'fail');
-              }
-            }
-            processed++;
-            const pct = 10 + Math.round((processed / selected.length) * 90);
-            document.getElementById('kw-prog-bar').style.width = pct + '%';
-            document.getElementById('kw-prog-txt').textContent = `${processed} / ${selected.length} 처리 중...`;
-            kwRender();
+      if (bizTargets.length) {
+        const payload = bizTargets.map(e => ({ mid: e.mid, pcode: e.pcode||'', keywords: e.keywords, distribute }));
+        await kwRunStream(`${SERVER}/process-stream`, payload, r => {
+          const entry = kwEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||''));
+          if (entry) {
+            entry._bizOk = r.success; entry._bizMsg = r.message;
+            kwFinalizeEntry(entry);
+            kwLog(`${r.success?'✅':'❌'} [비즈핏] ${r.mid}${r.pcode?' / '+r.pcode:''} — ${r.message}`, r.success?'success':'fail');
           }
-          if (data.error) {
-            selected.forEach(e => { if (e.status === 'running') { e.status = 'fail'; e.result = data.error; } });
-            kwLog(`❌ 서버 오류: ${data.error}`, 'fail');
-            document.getElementById('kw-prog-txt').textContent = '오류 발생';
-            break outer;
-          }
-          if (data.done) break outer;
-        }
+          bumpProgress(); kwRender();
+        });
       }
+      if (yupflTargets.length) {
+        const payload = yupflTargets.map(e => ({ mid: e.mid, keywords: e.yupflKeywords }));
+        // ponytail: 부분 실패 후 재실행하면 이미 성공한 쪽(비즈핏 또는 유입플)도 다시 시도됨 —
+        // 필요해지면 _bizOk/_yupflOk별로 재실행 대상을 나눠서 스킵 추가.
+        await kwRunStream(`${SERVER}/yupfl-process-stream`, payload, r => {
+          const entry = kwEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||''));
+          if (entry) {
+            entry._yupflOk = r.success; entry._yupflMsg = r.message;
+            kwFinalizeEntry(entry);
+            kwLog(`${r.success?'✅':'❌'} [유입플] ${r.mid} — ${r.message}`, r.success?'success':'fail');
+          }
+          bumpProgress(); kwRender();
+        });
+      }
+      successCnt = runTargets.filter(e => e.status === 'success').length;
+      failCnt    = runTargets.filter(e => e.status === 'fail').length;
       document.getElementById('kw-prog-bar').style.width = '100%';
       document.getElementById('kw-prog-txt').textContent = `완료 — 성공: ${successCnt}  실패: ${failCnt}`;
-      kwLog(`━━ 완료 — 성공: ${successCnt}  실패: ${failCnt}`, successCnt === selected.length ? 'success' : 'warn');
+      kwLog(`━━ 완료 — 성공: ${successCnt}  실패: ${failCnt}`, successCnt === runTargets.length ? 'success' : 'warn');
     } catch(e) {
-      selected.forEach(entry => { entry.status = 'fail'; entry.result = e.message; });
+      runTargets.forEach(entry => { if (entry.status === 'running') { entry.status = 'fail'; entry.result = e.message; } });
       kwLog(`❌ 서버 오류: ${e.message}`, 'fail');
       document.getElementById('kw-prog-txt').textContent = '오류 발생';
     }
