@@ -1397,12 +1397,13 @@ window.closeKwModal = function() {
     }
   }
 
-  // 재접수 대기(requeue)/변경(change) 상태인 슬롯에만 검색키워드·유입플키워드를 최신화한다 —
-  // 그 외 상태(대기/접수/승인 등)는 엑셀 일괄 등록이 건드리면 안 되므로 그대로 둔다.
+  // 재접수(isRequeue) 슬롯에만 검색키워드·유입플키워드를 최신화한다 — 재접수|대기/재접수|접수/
+  // 재접수|승인/변경 상태 전부 포함되지만, 일반(비재접수) 대기·접수 슬롯은 절대 건드리지 않는다
+  // (엑셀 일괄 등록이 관계없는 슬롯의 기존 키워드를 덮어써 날려버리면 안 되므로).
   // 매크로 하나만 성공해도(비즈핏만 있는 항목 등) 그 필드는 실제로 바뀐 값이니 바로 반영한다.
   function kwSyncSlotKeyword(mid, field, value) {
     const slots = window.getAllSlots ? window.getAllSlots() : [];
-    slots.filter(s => s.mid === mid && (s.status === 'requeue' || s.status === 'change'))
+    slots.filter(s => s.mid === mid && s.isRequeue)
       .forEach(slot => {
         window.HA.updateSlot(slot._key, { [field]: value });
         slot[field] = value;
@@ -1442,15 +1443,18 @@ window.closeKwModal = function() {
     entry.status = allOk ? 'success' : 'fail';
     entry.result = parts.join(' / ');
     if (entry.status === 'success') {
-      // change 상태 슬롯만 상태를 원래대로 되돌린다 — requeue 슬롯은 대기 상태 그대로 두고
-      // 키워드만 최신화된 상태로 남는다(별도 접수/승인 절차는 기존 흐름을 그대로 따라야 함).
+      // 재접수|대기(requeue) → 접수, 변경(change) → preChangeStatus 기준으로 원래 상태 복귀.
+      // 이미 재접수|접수·재접수|승인인 슬롯은 건드릴 상태 자체가 없으니(전환 대상이 아님) 그대로 둔다 —
+      // 일반(비재접수) 대기·접수 슬롯은 애초에 isRequeue가 아니라 이 필터에 안 걸린다.
       const slots = window.getAllSlots ? window.getAllSlots() : [];
-      slots.filter(s => s.mid === entry.mid && s.status === 'change').forEach(slot => {
-        // 대기/재접수|대기 → 접수, 접수/재접수|접수 → 접수(그대로), 승인/재접수|승인 → 승인(그대로)
-        const target = slot.preChangeStatus === 'active' ? 'active' : 'accepted';
-        window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
-        slot.status = target; delete slot.preChangeStatus;
-      });
+      slots.filter(s => s.mid === entry.mid && s.isRequeue && (s.status === 'requeue' || s.status === 'change'))
+        .forEach(slot => {
+          const target = slot.status === 'change'
+            ? (slot.preChangeStatus === 'active' ? 'active' : 'accepted')  // 대기/접수 → 접수(그대로), 승인 → 승인(그대로)
+            : 'accepted';                                                  // 재접수|대기 → 접수
+          window.HA.updateSlot(slot._key, { status: target, preChangeStatus: null });
+          slot.status = target; delete slot.preChangeStatus;
+        });
     }
   }
 
