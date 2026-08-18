@@ -1182,7 +1182,7 @@ import HA from './store.js';
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / Pcode(선택) / 키워드 / 메모(선택)</div>
+            <div class="uz-hint">MID / Pcode(선택) / 키워드</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
           <hr class="kw-divider">
@@ -1213,8 +1213,8 @@ import HA from './store.js';
               <tr>
                 <th style="width:34px"></th>
                 <th>MID</th>
-                <th>키워드</th>
-                <th>메모</th>
+                <th>비즈핏 키워드</th>
+                <th>유입플 키워드</th>
                 <th style="width:68px">상태</th>
               </tr>
             </thead>
@@ -1281,6 +1281,12 @@ window.closeKwModal = function() {
 
   function kwEsc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function kwSave() { if (window.kwFbSave) window.kwFbSave(kwEntries); }
+  // 키워드 목록을 나열하지 않고 개수 배지만 표시, 전체 목록은 title 툴팁(마우스오버)으로
+  function kwCountBadge(str) {
+    const list = String(str||'').split(',').map(k=>k.trim()).filter(Boolean);
+    if (!list.length) return '<span style="color:#c0c8d4;font-size:11px;">-</span>';
+    return `<span title="${kwEsc(list.join(', '))}" style="display:inline-block;padding:1px 7px;border-radius:100px;font-size:10px;font-weight:700;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;cursor:default;">${list.length}개</span>`;
+  }
 
   window.kwRemoveChecked = function() {
     const checked = kwEntries.filter(e => e.checked);
@@ -1313,7 +1319,9 @@ window.closeKwModal = function() {
     const noKw = sel.filter(e => !e.keywords).length;
     document.getElementById('kw-sum-count').textContent = sel.length;
     document.getElementById('kw-sum-nokw').textContent = noKw;
-    document.getElementById('kw-btn-run').disabled = sel.length === 0 || noKw > 0;
+    // 비즈핏 키워드가 없는 항목은 실행 시 자동으로 건너뛰므로(유입플 키워드만 있는 항목 등)
+    // 전체 실행을 막지 않는다 — 실행 가능한 항목이 하나도 없을 때만 버튼을 비활성화.
+    document.getElementById('kw-btn-run').disabled = sel.length === 0 || noKw === sel.length;
   }
 
   window.kwFilterList = function(val) { kwSearchQ = val.trim().toLowerCase(); kwRender(); };
@@ -1342,8 +1350,8 @@ window.closeKwModal = function() {
           <div class="kw-td-id">${kwEsc(e.mid)}${e.pcode?` <span class="kw-type-badge kw-type-pcode">${kwEsc(e.pcode)}</span>`:''}</div>
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
-        <td><div class="kw-td-kw" title="${kwEsc(e.keywords)}">${kwEsc(e.keywords)}</div></td>
-        <td><div class="kw-td-kw" title="${kwEsc(e.memo||'')}">${kwEsc(e.memo||'') || '<span style="color:#c0c8d4;font-size:10.5px;">오늘 날짜</span>'}</div></td>
+        <td>${kwCountBadge(e.keywords)}</td>
+        <td>${kwCountBadge(e.yupflKeywords)}</td>
         <td><span class="kw-sb ${sc[e.status]||'kw-sb-ready'}">${st[e.status]||'대기'}</span></td>
       </tr>`;
     }).join('');
@@ -1363,22 +1371,34 @@ window.closeKwModal = function() {
   window.kwStartProcess = async function() {
     const checked = kwEntries.filter(e => e.checked);
     if (!checked.length) { alert('항목을 선택해주세요.'); return; }
-    const selected = checked.filter(e => e.status !== 'success');
-    const skipped  = checked.length - selected.length;
-    if (!selected.length) { alert('선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)'); return; }
+    // 비즈핏 키워드가 빈칸인 항목은 매크로가 처리할 대상이 없으므로(유입플 키워드만 있는 항목 등)
+    // 실행 목록에서 제외 — 다른 선택 항목까지 막지 않고 그 항목만 건너뛴다.
+    const doneSkipped = checked.filter(e => e.status === 'success').length;
+    const noKwSkipped = checked.filter(e => e.status !== 'success' && !e.keywords).length;
+    const selected    = checked.filter(e => e.status !== 'success' && e.keywords);
+    if (!selected.length) {
+      alert(noKwSkipped
+        ? '선택한 항목에 비즈핏 키워드가 없습니다. (유입플 키워드만으로는 아직 자동 변경을 지원하지 않습니다)'
+        : '선택한 항목이 모두 완료 상태입니다. (이미 완료된 항목은 재실행 시 자동으로 건너뜁니다)');
+      return;
+    }
     const distribute = document.getElementById('kw-distribute-global').checked;
     const summary = selected.map(e => `  · ${e.mid}${e.pcode?' / '+e.pcode:''}`).join('\n');
-    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — Pcode 개수만큼 키워드 균등 배분)' : ''}\n\n${summary}\n\n총 ${selected.length}건${skipped ? ` (완료된 ${skipped}건은 건너뜀)` : ''}`)) return;
+    const skipNoteParts = [];
+    if (doneSkipped) skipNoteParts.push(`완료 ${doneSkipped}건`);
+    if (noKwSkipped) skipNoteParts.push(`비즈핏 키워드 없음 ${noKwSkipped}건`);
+    const skipNote = skipNoteParts.length ? ` (${skipNoteParts.join(', ')} 건너뜀)` : '';
+    if (!confirm(`아래 캠페인의 키워드를 변경하시겠습니까?${distribute ? '\n(배분 모드 ON — Pcode 개수만큼 키워드 균등 배분)' : ''}\n\n${summary}\n\n총 ${selected.length}건${skipNote}`)) return;
 
     window.kwRunning = true;
     const kwCloseBtn = document.getElementById('kw-close-btn');
     if (kwCloseBtn) { kwCloseBtn.disabled = true; kwCloseBtn.style.opacity = '0.3'; kwCloseBtn.style.cursor = 'not-allowed'; }
     document.getElementById('kw-btn-run').disabled = true;
     document.getElementById('kw-prog-wrap').style.display = 'block';
-    const payload = selected.map(e => ({ mid: e.mid, pcode: e.pcode||'', keywords: e.keywords, memo: e.memo || '', distribute }));
+    const payload = selected.map(e => ({ mid: e.mid, pcode: e.pcode||'', keywords: e.keywords, distribute }));
     selected.forEach(e => { e.status = 'running'; e.result = ''; });
     kwRender();
-    kwLog(`▶ 시작 — ${selected.length}개 캠페인${distribute ? ' (배분 모드)' : ''}${skipped ? ` (완료 ${skipped}건 건너뜀)` : ''}`, 'info');
+    kwLog(`▶ 시작 — ${selected.length}개 캠페인${distribute ? ' (배분 모드)' : ''}${skipNote}`, 'info');
     document.getElementById('kw-prog-bar').style.width = '10%';
     document.getElementById('kw-prog-txt').textContent = '로그인 중...';
 
@@ -1475,7 +1495,6 @@ window.closeKwModal = function() {
           const midCol   = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 0;
           const pcodeCol = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : -1;
           const kwCol    = hasHdr ? hdr.findIndex(h => /키워드/i.test(h)) : 1;
-          const memoCol  = hasHdr ? hdr.findIndex(h => /메모/i.test(h))   : 2;
           const start    = hasHdr ? 1 : 0;
           let added = 0, skipped = 0;
           for (let r = start; r < rows.length; r++) {
@@ -1483,10 +1502,9 @@ window.closeKwModal = function() {
             const mid      = String(row[midCol] || '').trim();
             const pcode    = pcodeCol >= 0 ? String(row[pcodeCol]||'').trim() : '';
             const keywords = kwCol    >= 0 ? String(row[kwCol]   ||'').trim() : '';
-            const memo     = memoCol  >= 0 ? String(row[memoCol] ||'').trim() : '';
             if (!mid || !keywords) { skipped++; continue; }
             if (kwEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { skipped++; continue; }
-            kwEntries.push({ mid, pcode, keywords, memo, status: 'ready', result: '' });
+            kwEntries.push({ mid, pcode, keywords, yupflKeywords: '', status: 'ready', result: '' });
             added++;
           }
           kwSave(); kwRender();
@@ -1520,10 +1538,12 @@ window.closeKwModal = function() {
       .forEach(s => {
         const mid      = (s.mid || '').trim();
         const keywords = (s.searchKeyword || '').trim();
-        const memo     = (s.memo || '').trim();
-        if (!mid || !keywords) { skipped++; return; }
+        const yupflKeywords = (s.yupflKeyword || '').trim();
+        // 검색키워드/유입플 키워드 둘 중 하나만 있어도 목록에는 올린다 — 실행 시 비즈핏
+        // 키워드가 없는 항목은 kwStartProcess에서 그 항목만 자동으로 건너뛴다.
+        if (!mid || (!keywords && !yupflKeywords)) { skipped++; return; }
         if (existing.has(mid)) { skipped++; return; }
-        kwEntries.push({ mid, pcode: '', keywords, memo, status: 'ready', result: '' });
+        kwEntries.push({ mid, pcode: '', keywords, yupflKeywords, status: 'ready', result: '' });
         existing.add(mid);
         added++;
       });
@@ -1531,8 +1551,8 @@ window.closeKwModal = function() {
     kwRender();
     kwLog(
       added
-        ? `📋 불러오기: ${added}개 추가${skipped ? ', ' + skipped + '개 건너뜀(중복 또는 검색키워드 없음)' : ''}`
-        : '⚠️ 추가된 항목 없음 (중복 또는 검색키워드 없음)',
+        ? `📋 불러오기: ${added}개 추가${skipped ? ', ' + skipped + '개 건너뜀(중복 또는 키워드 없음)' : ''}`
+        : '⚠️ 추가된 항목 없음 (중복 또는 키워드 없음)',
       added ? 'info' : 'warn'
     );
   };
@@ -1570,7 +1590,7 @@ window.closeKwModal = function() {
         // 예전 버전(id/id_type 단일 필드)으로 저장된 목록과의 호환 — id_type이 mid면 mid로, 아니면 pcode로 이관
         mid:     e.mid   ?? (e.id_type === 'mid' ? e.id : ''),
         pcode:   e.pcode ?? (e.id_type === 'mid' ? '' : e.id) ?? '',
-        memo:    e.memo  || '',
+        yupflKeywords: e.yupflKeywords || '',
         status:  'ready',
         result:  '',
         checked: e.checked ?? false,
@@ -2992,10 +3012,7 @@ window.closeUexModal = function() {
               이전 키워드 보기
             </button>` : ''}
           </label>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input type="text" class="detail-kw-input" id="detail-keyword-input" value="${escV(s.searchKeyword)}" placeholder="키워드를 입력해주세요" oninput="updateKwCount(this.value)" style="flex:1;">
-            <button ${kwChangeLocked?'disabled':`onclick="markKeywordChanged('${key}')"`} style="flex-shrink:0;font-size:11px;padding:6px 10px;border:1px solid ${kwChangeLocked?'var(--border)':'#f9a8d4'};border-radius:6px;background:${kwChangeLocked?'#f8fafc':'#fdf2f8'};color:${kwChangeLocked?'#c0c8d4':'#db2777'};cursor:${kwChangeLocked?'not-allowed':'pointer'};font-family:inherit;">변경</button>
-          </div>
+          <input type="text" class="detail-kw-input" id="detail-keyword-input" value="${escV(s.searchKeyword)}" placeholder="키워드를 입력해주세요" oninput="updateKwCount(this.value)">
           <div id="mid-history-area" style="display:none;margin-top:8px;"></div>
         </div>
         <div class="modal-field" id="yupfl-field-wrap" style="${yupflShown ? '' : 'display:none;'}">
@@ -3027,6 +3044,7 @@ window.closeUexModal = function() {
         ${splitKeywordFieldsHtml(s, splitProd, escV, escVAttr)}
         <div class="modal-footer">
           <button class="btn-cancel" onclick="closeDetailModal('${key}')">닫기</button>
+          ${s.isRequeue ? `<button class="btn-save" style="background:${kwChangeLocked?'var(--muted)':'#db2777'};" ${kwChangeLocked?'disabled':''} onclick="markKeywordChanged('${key}')">변경접수</button>` : ''}
           <button class="btn-save" style="background:rgba(59,130,246,1);" onclick="acceptFromDetail('${key}')">접수</button>
         </div>
       </div>`;
