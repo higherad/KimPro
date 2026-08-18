@@ -3104,7 +3104,7 @@ window.closeUexModal = function() {
         ${splitKeywordFieldsHtml(s, splitProd, escV, escVAttr)}
         <div class="modal-footer">
           <button class="btn-cancel" onclick="closeDetailModal('${key}')">닫기</button>
-          ${s.isRequeue ? `<button ${kwChangeLocked?'disabled':`onclick="markKeywordChanged('${key}')"`} style="font-size:11px;padding:6px 10px;border:1px solid ${kwChangeLocked?'var(--border)':'#f9a8d4'};border-radius:6px;background:${kwChangeLocked?'#f8fafc':'#fdf2f8'};color:${kwChangeLocked?'#c0c8d4':'#db2777'};cursor:${kwChangeLocked?'not-allowed':'pointer'};font-family:inherit;">변경</button>` : ''}
+          ${s.isRequeue ? `<button ${kwChangeLocked?'disabled':`onclick="markKeywordChanged('${key}')"`} style="font-size:13px;padding:8px 20px;border:1px solid ${kwChangeLocked?'var(--border)':'#f9a8d4'};border-radius:7px;background:${kwChangeLocked?'#f8fafc':'#fdf2f8'};color:${kwChangeLocked?'#c0c8d4':'#db2777'};cursor:${kwChangeLocked?'not-allowed':'pointer'};font-family:inherit;">변경</button>` : ''}
           <button class="btn-save" style="background:rgba(59,130,246,1);" onclick="acceptFromDetail('${key}')">접수</button>
         </div>
       </div>`;
