@@ -455,12 +455,6 @@ async function downloadRankTable() {
       .bs-card-head { background:#f8fafc; padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
       .bs-card-title { font-size:12px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; }
       .bs-card-body { padding:14px; }
-      .bs-toggle-grp { display:flex; gap:7px; margin-bottom:12px; }
-      .bs-tog-lbl { flex:1; display:flex; align-items:center; justify-content:center; gap:5px; padding:7px; border:1.5px solid var(--border); border-radius:7px; cursor:pointer; font-size:11px; font-weight:600; color:var(--text2); transition:all .15s; user-select:none; }
-      .bs-tog-lbl.pause-on { background:#fef9c3; border-color:#d69e2e; color:#b7791f; }
-      .bs-tog-lbl.force-on { background:#fed7d7; border-color:#c53030; color:#c53030; }
-      .bs-btn-add { width:100%; padding:8px; border:none; border-radius:7px; background:#7b1fa2; color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
-      .bs-btn-add:hover { background:#6a1b9a; }
       .bs-upload-zone { border:2px dashed var(--border); border-radius:9px; padding:14px; text-align:center; cursor:pointer; transition:all .2s; background:#fafbfc; margin-top:4px; }
       .bs-upload-zone:hover,.bs-upload-zone.drag-on { border-color:#7b1fa2; background:#faf5ff; }
       .bs-upload-zone .uz-icon { font-size:22px; margin-bottom:4px; }
@@ -513,7 +507,6 @@ async function downloadRankTable() {
       .bs-badge { display:inline-block; padding:1px 7px; border-radius:100px; font-size:11px; font-weight:700; background:#faf5ff; color:#6b21a8; border:1px solid #e9d5ff; }
       .bs-btn-del { padding:4px 10px; font-size:11px; font-weight:600; border-radius:5px; border:1px solid #fed7d7; background:#fff1f0; color:#e53e3e; cursor:pointer; font-family:inherit; }
       .bs-btn-del:hover { background:#ffe0de; }
-      .bs-divider { border:none; border-top:1px solid var(--border); margin:12px 0; }
       .bs-sec-lbl { font-size:10px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px; }
       .bs-srv-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:100px; }
       .bs-srv-ok  { background:#d1fae5; color:#065f46; }
@@ -546,12 +539,6 @@ async function downloadRankTable() {
             <div class="uz-hint">MID / Pcode(선택) / 임시중단B(O) / 강제종료(O) / 메모</div>
           </div>
           <input type="file" id="bs-file" accept=".xlsx,.xls" style="display:none" onchange="bsHandleExcel(this.files[0])">
-          <hr class="bs-divider">
-          <div class="bs-sec-lbl">처리 작업</div>
-          <div class="bs-toggle-grp">
-            <div class="bs-tog-lbl" id="bs-lbl-pause" onclick="bsToggleAction('pause')">⏸ 임시중단B</div>
-            <div class="bs-tog-lbl" id="bs-lbl-force" onclick="bsToggleAction('force')">🛑 강제종료</div>
-          </div>
         </div>
       </div>
 
@@ -639,7 +626,6 @@ document.addEventListener('keydown', function(e) {
 (function() {
   const SERVER = 'https://macro-7-bizfit-stop-938928195180.asia-northeast3.run.app';
   let bsEntries = [];
-  let bsPause = false, bsForce = false;
   let bsSearchQ = '';
   // 배치 강제종료 재접수 시 MID마다 개별 addSlot이 users 전체를 재조회하지 않도록
   // 이 IIFE 안에서 1회만 조회해 재사용 (userId가 서로 다른 슬롯들이 섞여 있어 맵으로 조회)
@@ -656,16 +642,6 @@ document.addEventListener('keydown', function(e) {
   function bsSave() {
     if (window.bsFbSave) window.bsFbSave(bsEntries);
   }
-
-  window.bsToggleAction = function(type) {
-    if (type === 'pause') {
-      bsPause = !bsPause;
-      document.getElementById('bs-lbl-pause').classList.toggle('pause-on', bsPause);
-    } else {
-      bsForce = !bsForce;
-      document.getElementById('bs-lbl-force').classList.toggle('force-on', bsForce);
-    }
-  };
 
   window.bsRemoveChecked = function() {
     const checked = bsEntries.filter(e => e.checked);
