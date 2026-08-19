@@ -1320,16 +1320,23 @@ window.closeKwModal = function() {
     }
   }
 
-  // MID가 일치하는 슬롯의 검색키워드·유입플키워드 입력창 값을 최신화한다 — status/isRequeue는
-  // 보지 않고 MID 매칭 여부로만 판단한다. 상태(status)는 여기서 전혀 바꾸지 않는다 — 접수/승인/
-  // 재접수 전환은 기존 버튼으로만 이뤄져야 한다. 매크로 하나만 성공해도(비즈핏만 있는 항목 등)
-  // 그 필드는 실제로 바뀐 값이니 바로 반영한다.
+  // MID가 일치하는 슬롯의 검색키워드·유입플키워드 입력창 값을 최신화한다 — isRequeue는
+  // 보지 않고 MID 매칭 여부로만 판단한다(단, 종료된 건은 제외). 상태(status)는 여기서 전혀
+  // 바꾸지 않는다 — 접수/승인/재접수 전환은 기존 버튼으로만 이뤄져야 한다. 매크로 하나만
+  // 성공해도(비즈핏만 있는 항목 등) 그 필드는 실제로 바뀐 값이니 바로 반영한다.
   function kwSyncSlotKeyword(mid, field, value) {
+    // saveDetailFields(상세→변경)와 동일하게, 바뀐 값을 오늘 날짜로 히스토리 배열에도 남긴다.
+    const histField = field === 'searchKeyword' ? 'keywordHistory' : field === 'yupflKeyword' ? 'yupflKeywordHistory' : null;
     const slots = window.getAllSlots ? window.getAllSlots() : [];
-    slots.filter(s => s.mid === mid)
+    slots.filter(s => s.mid === mid && s.status !== 'ended' && s.status !== 'expired')
       .forEach(slot => {
-        window.HA.updateSlot(slot._key, { [field]: value });
+        const updates = { [field]: value };
+        if (histField) {
+          updates[histField] = [...(slot[histField] || []), { keyword: value, date: new Date().toISOString() }].slice(-10);
+        }
+        window.HA.updateSlot(slot._key, updates);
         slot[field] = value;
+        if (histField) slot[histField] = updates[histField];
       });
   }
 
