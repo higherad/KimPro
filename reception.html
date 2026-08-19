@@ -204,7 +204,6 @@ async function downloadRankTable() {
   .s-active        { background:rgba(16,185,129,.1);  color:#059669; }
   .s-force-stopped { background:rgba(239,68,68,.1);   color:#dc2626; }
   .s-paused        { background:rgba(124,58,237,.1);  color:#7c3aed; }
-  .s-changed       { background:rgba(219,39,119,.1);  color:#db2777; }
   .s-requeue       { background:rgba(20,184,166,.1);  color:#0f766e; }
   .s-ended         { background:#f1f5f9; color:#64748b; }
   .s-expired       { background:#f1f5f9; color:#64748b; }
@@ -2210,7 +2209,6 @@ import HA from './store.js';
     <option value="requeue_active">재접수|승인</option>
     <option value="paused">임시중단</option>
     <option value="force_stopped">강제종료</option>
-    <option value="change">변경</option>
     <option value="ended">종료</option>
   </select>
   <select id="filter-slot-type" onchange="renderReceipts()" disabled>
@@ -2372,7 +2370,6 @@ window.closeUexModal = function() {
     active:        '<span class="status-badge s-active">승인</span>',
     force_stopped: '<span class="status-badge s-force-stopped">강제종료</span>',
     paused:        '<span class="status-badge s-paused">임시중단</span>',
-    change:        '<span class="status-badge s-changed">변경</span>',
     requeue:       '<span class="status-badge s-pending">재접수 | 대기</span>',
     ended:         '<span class="status-badge s-ended">종료</span>',
     expired:       '<span class="status-badge s-ended">종료</span>',
@@ -2382,8 +2379,8 @@ window.closeUexModal = function() {
       return `<div style="display:flex;flex-direction:column;gap:2px;align-items:flex-start">${stMap.paused}${stMap.force_stopped}</div>`;
     }
     if (s.isRequeue && s.status !== 'requeue') {
-      const classMap = { accepted: 's-accepted', active: 's-active', pending: 's-pending', ended: 's-ended', expired: 's-ended', force_stopped: 's-force-stopped', paused: 's-paused', change: 's-changed' };
-      const labelMap = { accepted: '접수',        active: '승인',     pending: '대기',     ended: '종료',     expired: '종료',     force_stopped: '강제종료',        paused: '임시중단', change: '변경' };
+      const classMap = { accepted: 's-accepted', active: 's-active', pending: 's-pending', ended: 's-ended', expired: 's-ended', force_stopped: 's-force-stopped', paused: 's-paused' };
+      const labelMap = { accepted: '접수',        active: '승인',     pending: '대기',     ended: '종료',     expired: '종료',     force_stopped: '강제종료',        paused: '임시중단' };
       const cls   = classMap[s.status] || 's-pending';
       const label = labelMap[s.status] || s.status;
       return `<span class="status-badge ${cls}">재접수 | ${label}</span>`;
