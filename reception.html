@@ -5445,16 +5445,16 @@ window.closeUexModal = function() {
     const tbl  = document.createElement('table'); tbl.className = 'ag-table ag-table-tight';
     tbl.style.cssText = 'table-layout:fixed;width:100%';
     tbl.innerHTML = `<thead><tr>
-      <th style="width:60px">등급</th>
-      <th style="width:90px">업체명</th>
-      <th style="width:100px">URL</th>
-      <th style="width:90px">MID</th>
+      <th style="width:64px">등급</th>
+      <th style="width:98px">업체명</th>
+      <th style="width:108px">URL</th>
+      <th style="width:96px">MID</th>
       <th style="width:84px">순위키워드</th>
       <th style="width:56px;text-align:right">일목표</th>
       <th style="width:44px;text-align:center">${daysMultiplied ? '전체목표' : '일수'}</th>
       <th style="width:74px">예약일</th>
       <th style="width:56px;text-align:center">검색키워드</th>
-      ${blogUrl ? '<th style="width:100px">블로그URL</th>' : ''}
+      ${blogUrl ? '<th style="width:74px">블로그URL</th>' : ''}
       <th style="width:76px;text-align:center">상태</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
