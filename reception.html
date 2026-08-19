@@ -384,6 +384,8 @@ async function downloadRankTable() {
   .ag-table tbody tr{border-bottom:1px solid var(--border)}
   .ag-table tbody tr:last-child{border-bottom:none}
   .ag-table tbody td{padding:10px 14px}
+  .ag-table.ag-table-tight thead th{padding:9px 8px}
+  .ag-table.ag-table-tight tbody td{padding:10px 8px}
   .agency-ft{background:#f0f4ff;border-top:1.5px solid #c7d2fe;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
   .agency-ft .totals{display:flex;gap:20px;font-size:13px;color:var(--muted);flex-wrap:wrap}
 </style>
@@ -5440,19 +5442,19 @@ window.closeUexModal = function() {
     block.appendChild(hd);
 
     const wrap = document.createElement('div'); wrap.style.width = '100%';
-    const tbl  = document.createElement('table'); tbl.className = 'ag-table';
+    const tbl  = document.createElement('table'); tbl.className = 'ag-table ag-table-tight';
     tbl.style.cssText = 'table-layout:fixed;width:100%';
     tbl.innerHTML = `<thead><tr>
-      <th style="width:72px">등급</th>
-      <th style="width:100px">업체명</th>
-      <th style="width:130px">URL</th>
-      <th style="width:100px">MID</th>
-      <th style="width:96px">순위키워드</th>
-      <th style="width:62px;text-align:right">일목표</th>
+      <th style="width:60px">등급</th>
+      <th style="width:90px">업체명</th>
+      <th style="width:100px">URL</th>
+      <th style="width:90px">MID</th>
+      <th style="width:84px">순위키워드</th>
+      <th style="width:56px;text-align:right">일목표</th>
       <th style="width:44px;text-align:center">${daysMultiplied ? '전체목표' : '일수'}</th>
-      <th style="width:84px">예약일</th>
-      <th style="width:64px;text-align:center">검색키워드</th>
-      ${blogUrl ? '<th style="width:50px">블로그URL</th>' : ''}
+      <th style="width:74px">예약일</th>
+      <th style="width:56px;text-align:center">검색키워드</th>
+      ${blogUrl ? '<th style="width:100px">블로그URL</th>' : ''}
       <th style="width:76px;text-align:center">상태</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
