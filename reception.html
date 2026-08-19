@@ -4659,8 +4659,8 @@ window.closeUexModal = function() {
   // 찰리는 일반 상품과 달리 "NP 위치저장"(adrole=100) 메뉴로 접수해야 한다 — 계정에 NP트래픽(211 등)이
   // 함께 설정돼 있으면 등급명이 겹쳐서(가격은 다름) 자동탐색으론 구분이 안 되므로 adrole을 강제 지정.
   const CHARLIE_ADROLE = '100';
-  // 델타(블로그저장)도 찰리와 같은 NP위치저장(adrole=100) 계열 등급명으로 추정 — 실제 등급/adrole은
-  // 실측(비즈핏 사이트에서 소액 실접수)으로 확인 전까지 이 값은 가정치임(2026-08-18).
+  // 델타(블로그저장)도 찰리와 같은 NP위치저장(adrole=100) 계열 등급명 — 실측(비즈핏 사이트 소액 실접수,
+  // 2026-08-19)으로 정상 등록 확인 완료.
   const DELTA_ADROLE = '100';
 
   async function fetchBizfitAccount(agencyId) {
@@ -5439,7 +5439,7 @@ window.closeUexModal = function() {
     hd.innerHTML = `<div><div class="aname">${escProd(p.agency)}</div><div class="ameta">총 ${p.rows.length}건 · 목표 합계 ${totalTarget.toLocaleString()}${deductNote}</div></div>`;
     block.appendChild(hd);
 
-    const wrap = document.createElement('div'); wrap.style.cssText = 'width:100%;overflow-x:auto;';
+    const wrap = document.createElement('div'); wrap.style.width = '100%';
     const tbl  = document.createElement('table'); tbl.className = 'ag-table';
     tbl.style.cssText = 'table-layout:fixed;width:100%';
     tbl.innerHTML = `<thead><tr>
@@ -5452,7 +5452,7 @@ window.closeUexModal = function() {
       <th style="width:44px;text-align:center">${daysMultiplied ? '전체목표' : '일수'}</th>
       <th style="width:84px">예약일</th>
       <th style="width:64px;text-align:center">검색키워드</th>
-      ${blogUrl ? '<th style="width:130px">블로그URL</th>' : ''}
+      ${blogUrl ? '<th style="width:50px">블로그URL</th>' : ''}
       <th style="width:76px;text-align:center">상태</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
