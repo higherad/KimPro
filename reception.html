@@ -5439,7 +5439,7 @@ window.closeUexModal = function() {
     hd.innerHTML = `<div><div class="aname">${escProd(p.agency)}</div><div class="ameta">총 ${p.rows.length}건 · 목표 합계 ${totalTarget.toLocaleString()}${deductNote}</div></div>`;
     block.appendChild(hd);
 
-    const wrap = document.createElement('div'); wrap.style.width = '100%';
+    const wrap = document.createElement('div'); wrap.style.cssText = 'width:100%;overflow-x:auto;';
     const tbl  = document.createElement('table'); tbl.className = 'ag-table';
     tbl.style.cssText = 'table-layout:fixed;width:100%';
     tbl.innerHTML = `<thead><tr>
