@@ -530,7 +530,7 @@ async function downloadRankTable() {
           <div class="bs-upload-zone" id="bs-drop-zone" onclick="document.getElementById('bs-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / Pcode(선택) / 임시중단B(O) / 강제종료(O) / 메모</div>
+            <div class="uz-hint">MID / Pcode / 임시중단B(O) / 강제종료(O) / 메모</div>
           </div>
           <input type="file" id="bs-file" accept=".xlsx,.xls" style="display:none" onchange="bsHandleExcel(this.files[0])">
         </div>
@@ -1105,7 +1105,7 @@ import HA from './store.js';
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / Pcode(선택) / 비즈핏 키워드 / 유입플 키워드</div>
+            <div class="uz-hint">MID / Pcode / 비즈핏 키워드 / 유입플 키워드</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
         </div>
