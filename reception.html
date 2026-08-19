@@ -553,7 +553,6 @@ async function downloadRankTable() {
             <div class="bs-tog-lbl" id="bs-lbl-pause" onclick="bsToggleAction('pause')">⏸ 임시중단B</div>
             <div class="bs-tog-lbl" id="bs-lbl-force" onclick="bsToggleAction('force')">🛑 강제종료</div>
           </div>
-          <button class="bs-btn-add" style="width:100%;background:#0369a1;" onclick="bsLoadFromList()">📋 리스트에서 불러오기</button>
         </div>
       </div>
 
@@ -935,8 +934,7 @@ document.addEventListener('keydown', function(e) {
     }
   })();
 
-  // 시작일이 아직 안 된 슬롯인지 — 강제종료판에 담을 때(bsLoadFromList)와 실제 강제종료
-  // 실행 시(onBsEntrySuccess) 둘 다 같은 기준으로 걸러야 함(미래 시작일 강제종료는 의미 없음).
+  // 시작일이 아직 안 된 슬롯은 강제종료 실행(onBsEntrySuccess) 시 재접수 대상에서 제외
   function isFutureStart(slot, todayStr) {
     return !!(slot.startDate && slot.startDate > todayStr);
   }
@@ -1015,45 +1013,6 @@ document.addEventListener('keydown', function(e) {
       }
     } catch(e) { console.error('onBsEntrySuccess 오류:', e); }
   }
-
-  // 메인 테이블 체크 항목을 강제종료 목록으로 일괄 삽입
-  window.bsLoadFromList = function() {
-    const allSlotsData = window.getAllSlots ? window.getAllSlots() : [];
-    const checkedKeys = new Set(
-      [...document.querySelectorAll('.row-check:checked')].map(el => el.dataset.key)
-    );
-    if (!checkedKeys.size) {
-      bsLog('⚠️ 리스트에서 불러올 항목이 없습니다.', 'warn');
-      return;
-    }
-    const existing = new Set(bsEntries.map(e => e.mid));
-    const todayStr = new Date().toISOString().slice(0, 10);
-    let added = 0, skipped = 0, futureSkipped = 0;
-    allSlotsData
-      .filter(s => checkedKeys.has(s._key) && s.status === 'active')
-      .forEach(s => {
-        const mid = (s.mid || '').trim();
-        if (!mid) return;
-        if (existing.has(mid)) { skipped++; return; }
-        // 시작일이 아직 안 된 캠페인은 강제종료 대상에서 제외 (미래 시작일 강제종료는 의미 없음)
-        if (isFutureStart(s, todayStr)) { futureSkipped++; return; }
-        const memo = (s.memo || '').trim() || todayStr;
-        bsEntries.push({ mid, memo, do_pause: bsPause, do_force: bsForce, status: 'ready', result: '' });
-        existing.add(mid);
-        added++;
-      });
-    if (window.bsFbSave) window.bsFbSave(bsEntries);
-    bsRender();
-    const parts = [];
-    if (skipped) parts.push(skipped + '개 중복 건너뜀');
-    if (futureSkipped) parts.push(futureSkipped + '개 시작일 미도래 제외');
-    bsLog(
-      added
-        ? `📋 불러오기: ${added}개 추가${parts.length ? ', ' + parts.join(', ') : ''}`
-        : `⚠️ 추가된 항목 없음${parts.length ? ' (' + parts.join(', ') + ')' : ''}`,
-      added ? 'info' : 'warn'
-    );
-  };
 
   // Firebase 연동 (load/save)
   window._bsSetEntries = function(data) {
