@@ -392,7 +392,7 @@ async function downloadRankTable() {
 <!-- 대행사 엑셀 접수 모달 -->
 <div id="uex-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
   <div style="background:#fff;border-radius:16px;width:860px;max-width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);background:#fff;border-radius:16px 16px 0 0;">
       <div style="font-size:15px;font-weight:700;">📊 대행사 엑셀 접수</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="action-btn" style="background:#475569;color:#fff;font-size:11px;padding:4px 10px;" onclick="downloadUexTemplate()">📥 양식 다운로드</button>
@@ -439,7 +439,7 @@ async function downloadRankTable() {
 <!-- 강제종료 모달 -->
 <div id="stop-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
   <div style="background:#fff;border-radius:16px;width:1100px;max-width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);background:#fff;border-radius:16px 16px 0 0;">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="font-size:15px;font-weight:700;">🛑 강제종료</div>
         <span class="bs-srv-badge bs-srv-chk" id="bs-srv-badge">⏳ 서버 확인 중</span>
@@ -1001,7 +1001,7 @@ import HA from './store.js';
 <!-- 키워드 변경 모달 -->
 <div id="kw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9100;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
   <div style="background:#fff;border-radius:16px;width:1100px;max-width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);background:#fff;border-radius:16px 16px 0 0;">
       <div style="display:flex;align-items:center;gap:10px;">
         <div style="font-size:15px;font-weight:700;">🔤 키워드 변경</div>
         <span class="kw-srv-badge kw-srv-chk" id="kw-srv-badge">⏳ 서버 확인 중</span>
@@ -6074,7 +6074,7 @@ window.closeUexModal = function() {
 <style>
   #charge-modal { position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9200;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px; }
   #charge-modal .cm-box { background:#fff;border-radius:16px;width:680px;max-width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.25); }
-  #charge-modal .cm-head { display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1; }
+  #charge-modal .cm-head { display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);background:#fff;border-radius:16px 16px 0 0; }
   #charge-modal .cm-head-title { font-size:15px;font-weight:700; }
   #charge-modal .cm-close { border:none;background:#f1f5f9;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1; }
   #charge-modal .cm-body { padding:20px 24px; }
