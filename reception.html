@@ -5203,11 +5203,7 @@ window.closeUexModal = function() {
 
   // 일반/찰리 탭 공용 — 대행사별 블록 렌더 + 요약 문구 + 접수 신청 버튼 와이어링.
   // emptyMsg 생략 시(일반 탭) 대상 없을 때 아무것도 안 함 — 탭 버튼 자체가 disabled라 도달 불가.
-  // "접수 신청"을 누르기 전에 미리 검사해서, 오류가 하나라도 있으면 버튼 자체를 못 누르게 막는다.
-  // executeSubmit(processAgency) 안의 검사와 완전히 동일한 조건을 렌더 시점에 먼저 돌리는 것 —
-  // 클릭 시점 검사는 그대로 둔다(방어적 이중검사). 상태(_statusTd)는 안 건드림 — 이미 오류
-  // 배지(검색키워드 0개 등)가 표에 따로 보이므로 여기서 또 표시하면 중복.
-  // (higher/접수관리.html과 동일 로직 — 쌍둥이 구현, 한쪽 수정 시 다른 쪽도 확인할 것)
+  // 접수 신청 전 사전검사(executeSubmit과 동일 조건) — 오류 있으면 버튼 비활성화. higher와 쌍둥이 구현.
   function validateNormalRowsForSubmit(rows) {
     let anyFail = false;
     rows.forEach(r => {
@@ -5241,9 +5237,11 @@ window.closeUexModal = function() {
       totalTarget += daysMultipliedSum(p.rows, daysMultiplied);
     });
     subEl.innerHTML = `<span style="color:var(--muted)">대행사 ${plan.length}곳 · ${label} ${totalStores}건 · 목표 합계 ${totalTarget.toLocaleString()} —</span> <span style="color:#dc2626;font-weight:600;">검토 후 접수 신청을 눌러주세요.</span>`;
-    if (target.every(s => s.status === 'active')) {
+    const allRows = plan.flatMap(p => p.rows);
+    // 이 탭 행이 전부 이미 완료(_normalSubmitted)면 슬롯이 active 아니어도 완료로 표시.
+    if (target.every(s => s.status === 'active') || (allRows.length && allRows.every(r => r._normalSubmitted))) {
       applyBtn.disabled = true; applyBtn.textContent = '✅ 전체 완료'; applyBtn.style.background = '#475569'; applyBtn.style.cursor = 'default';
-    } else if (validateNormalRowsForSubmit(plan.flatMap(p => p.rows))) {
+    } else if (validateNormalRowsForSubmit(allRows)) {
       applyBtn.disabled = true;
       applyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
       applyBtn.style.background = '#9ca3af'; applyBtn.style.cursor = 'not-allowed';
@@ -5414,7 +5412,11 @@ window.closeUexModal = function() {
       overlay.querySelector('#youpfl-sub').innerHTML =
         `<span style="color:var(--muted)">대행사 ${yupflAgencies.length}곳 · 유입플 ${yupflRows.length}건 · 목표 합계 ${totalTarget.toLocaleString()} · 금액 합계 ${totalAmount.toLocaleString()}원 —</span> <span style="color:#dc2626;font-weight:600;">검토 후 접수 신청을 눌러주세요.</span>`;
       const youpflApplyBtn = overlay.querySelector('#youpfl-apply-btn');
-      if (validateYoupflRowsForSubmit(yupflRows)) {
+      // 행이 전부 이미 완료(_fixedSubmitted)면 완료로 표시.
+      if (yupflRows.length && yupflRows.every(r => r._fixedSubmitted)) {
+        youpflApplyBtn.disabled = true; youpflApplyBtn.textContent = '✅ 전체 완료';
+        youpflApplyBtn.style.background = '#475569'; youpflApplyBtn.style.cursor = 'default';
+      } else if (validateYoupflRowsForSubmit(yupflRows)) {
         youpflApplyBtn.disabled = true;
         youpflApplyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
         youpflApplyBtn.style.background = '#9ca3af'; youpflApplyBtn.style.cursor = 'not-allowed';
