@@ -5203,6 +5203,42 @@ window.closeUexModal = function() {
 
   // 일반/찰리 탭 공용 — 대행사별 블록 렌더 + 요약 문구 + 접수 신청 버튼 와이어링.
   // emptyMsg 생략 시(일반 탭) 대상 없을 때 아무것도 안 함 — 탭 버튼 자체가 disabled라 도달 불가.
+  // "접수 신청"을 누르기 전에 미리 검사해서, 오류가 하나라도 있으면 버튼 자체를 못 누르게 막는다.
+  // executeSubmit(processAgency) 안의 검사와 완전히 동일한 조건을 렌더 시점에 먼저 돌리는 것 —
+  // 클릭 시점 검사는 그대로 두고(방어적 이중검사), 여기선 상태 배지만 미리 보여주고 버튼을 잠근다.
+  // (higher/접수관리.html과 동일 로직 — 쌍둥이 구현, 한쪽 수정 시 다른 쪽도 확인할 것)
+  function validateNormalRowsForSubmit(rows) {
+    let anyFail = false;
+    rows.forEach(r => {
+      if (r._normalSubmitted) return;
+      const kwCount = (r.검색키워드 || '').split(',').map(k => k.trim()).filter(k => k).length;
+      let failMsg = null;
+      if (kwCount === 0) failMsg = '검색키워드 미입력';
+      else if ((r.일목표 || 0) < 10) failMsg = `일목표 ${r.일목표 || 0}개 — 10 미만`;
+      else if (r._requiresBlogUrl && !r.블로그URL) failMsg = '블로그 URL 미입력';
+      if (failMsg) {
+        r._kwFail = true;
+        anyFail = true;
+        if (r._statusTd) r._statusTd.innerHTML = `<span style="color:var(--danger);" title="${escProd(failMsg)}">❌ ${escProd(failMsg)}</span>`;
+      }
+    });
+    return anyFail;
+  }
+
+  // 유입플 탭 전용 — executeYoupflSubmit 안의 검사(workKw 미입력)와 동일 조건.
+  function validateYoupflRowsForSubmit(rows) {
+    let anyFail = false;
+    rows.forEach(r => {
+      if (r._fixedSubmitted) return;
+      if (!r.workKw) {
+        r._kwFail = true;
+        anyFail = true;
+        if (r._statusTd) r._statusTd.innerHTML = '<span style="color:var(--danger);" title="키워드 미입력">❌ 키워드 미입력</span>';
+      }
+    });
+    return anyFail;
+  }
+
   function wireSubmitTab({ has, plan, bodyEl, subEl, applyBtn, label, daysMultiplied=false, blogUrl=false, target, emptyMsg, onSubmit }) {
     if (!has) {
       if (emptyMsg) { subEl.textContent = emptyMsg; applyBtn.disabled = true; }
@@ -5217,6 +5253,9 @@ window.closeUexModal = function() {
     subEl.innerHTML = `<span style="color:var(--muted)">대행사 ${plan.length}곳 · ${label} ${totalStores}건 · 목표 합계 ${totalTarget.toLocaleString()} —</span> <span style="color:#dc2626;font-weight:600;">검토 후 접수 신청을 눌러주세요.</span>`;
     if (target.every(s => s.status === 'active')) {
       applyBtn.disabled = true; applyBtn.textContent = '✅ 전체 완료'; applyBtn.style.background = '#475569'; applyBtn.style.cursor = 'default';
+    } else if (validateNormalRowsForSubmit(plan.flatMap(p => p.rows))) {
+      applyBtn.disabled = true;
+      applyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
     } else {
       applyBtn.onclick = onSubmit;
     }
@@ -5383,7 +5422,13 @@ window.closeUexModal = function() {
       const totalAmount = yupflRows.reduce((a,r) => a+(r.amount||0), 0);
       overlay.querySelector('#youpfl-sub').innerHTML =
         `<span style="color:var(--muted)">대행사 ${yupflAgencies.length}곳 · 유입플 ${yupflRows.length}건 · 목표 합계 ${totalTarget.toLocaleString()} · 금액 합계 ${totalAmount.toLocaleString()}원 —</span> <span style="color:#dc2626;font-weight:600;">검토 후 접수 신청을 눌러주세요.</span>`;
-      overlay.querySelector('#youpfl-apply-btn').onclick = () => executeYoupflSubmit(yupflRows, overlay, gate);
+      const youpflApplyBtn = overlay.querySelector('#youpfl-apply-btn');
+      if (validateYoupflRowsForSubmit(yupflRows)) {
+        youpflApplyBtn.disabled = true;
+        youpflApplyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
+      } else {
+        youpflApplyBtn.onclick = () => executeYoupflSubmit(yupflRows, overlay, gate);
+      }
     } else {
       overlay.querySelector('#youpfl-sub').textContent = '유입플 배분 대상 슬롯이 없습니다.';
       overlay.querySelector('#youpfl-apply-btn').disabled = true;
