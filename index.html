@@ -201,9 +201,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-auth.js";
 
-// kimpro RTDB 규칙이 이 계정 로그인 여부로 read/write를 판단함(2026-08-05 추가 —
-// 이전엔 kimpro 전체가 인증 없이도 read/write 가능했음, project_kimpro_rtdb_unprotected.md 참조).
-// 코드 "kimpro" 입력 시 이 고정 계정으로 Firebase Auth 로그인해 실제 인증 세션을 만든다.
+// kimpro RTDB 규칙이 이 계정 로그인 여부로 read/write 판단(2026-08-05 추가, project_kimpro_rtdb_unprotected.md 참조) — 코드 "kimpro" 입력 시 이 고정 계정으로 Firebase Auth 로그인
 const firebaseConfig = {
   apiKey: "AIzaSyAF-Rn7tzIjQeyUDJKnvKTRNccsXUVsIjo",
   authDomain: "higherad-b9d62.firebaseapp.com",
@@ -218,9 +216,7 @@ const auth = getAuth(initializeApp(firebaseConfig));
 const KIMPRO_ACCESS_EMAIL = 'kimpro-access@higherad.app';
 const KIMPRO_ACCESS_PASSWORD = 'm0N7anwQIcPTIarfhWvkpBN0';
 
-// kimpro RTDB 규칙이 kimpro-access 계정 하나만 허용하므로, 코드가 달라도(kimpro/member)
-// 실제 Firebase Auth 로그인은 항상 이 계정으로 한다. 세션에 저장하는 username만 다르게 둬서
-// 상세 잠금(reception.html의 편집 중 팝업)이 서로 다른 사람으로 구분하게 한다.
+// kimpro RTDB 규칙이 kimpro-access 계정만 허용해 코드가 달라도(kimpro/member) 실제 로그인은 항상 이 계정으로 함 — 세션 username만 다르게 둬 편집 잠금에서 사람을 구분
 const CODE_USERS = {
   kimpro: { id: 'kimpro-access', username: 'kimpro', agency: 'kimpro', role: 'admin', approved: true },
   member: { id: 'kimpro-member', username: 'member', agency: 'kimpro', role: 'member', approved: true },
