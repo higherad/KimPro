@@ -552,7 +552,7 @@ async function downloadRankTable() {
           <span>전체 선택</span>
           <span id="bs-sel-count" style="font-weight:400">0개 선택됨</span>
           <div style="margin-left:auto">
-            <button class="bs-btn-del" onclick="bsRemoveChecked()">삭제</button>
+            <button class="bs-btn-del" onclick="bsRemoveAll()">전체삭제</button>
           </div>
         </div>
         <div style="overflow-x:auto">
@@ -639,11 +639,10 @@ document.addEventListener('keydown', function(e) {
     if (window.bsFbSave) window.bsFbSave(bsEntries);
   }
 
-  window.bsRemoveChecked = function() {
-    const checked = bsEntries.filter(e => e.checked);
-    if (!checked.length) { alert('삭제할 항목을 선택해주세요.'); return; }
-    if (!confirm(`선택한 ${checked.length}개 항목을 삭제하시겠습니까?`)) return;
-    bsEntries = bsEntries.filter(e => !e.checked);
+  window.bsRemoveAll = function() {
+    if (!bsEntries.length) { alert('삭제할 항목이 없습니다.'); return; }
+    if (!confirm(`전체 ${bsEntries.length}개 항목을 삭제하시겠습니까?`)) return;
+    bsEntries = [];
     bsSave(); bsRender();
   };
 
@@ -1127,7 +1126,7 @@ import HA from './store.js';
           <span>전체 선택</span>
           <span id="kw-sel-count" style="font-weight:400">0개 선택됨</span>
           <div style="margin-left:auto">
-            <button class="kw-btn-del" onclick="kwRemoveChecked()">삭제</button>
+            <button class="kw-btn-del" onclick="kwRemoveAll()">전체삭제</button>
           </div>
         </div>
         <div style="overflow-x:auto">
@@ -1211,11 +1210,10 @@ window.closeKwModal = function() {
     return `<span title="${kwEsc(list.join(', '))}" style="display:inline-block;padding:1px 7px;border-radius:100px;font-size:10px;font-weight:700;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;cursor:default;">${list.length}개</span>`;
   }
 
-  window.kwRemoveChecked = function() {
-    const checked = kwEntries.filter(e => e.checked);
-    if (!checked.length) { alert('삭제할 항목을 선택해주세요.'); return; }
-    if (!confirm(`선택한 ${checked.length}개 항목을 삭제하시겠습니까?`)) return;
-    kwEntries = kwEntries.filter(e => !e.checked);
+  window.kwRemoveAll = function() {
+    if (!kwEntries.length) { alert('삭제할 항목이 없습니다.'); return; }
+    if (!confirm(`전체 ${kwEntries.length}개 항목을 삭제하시겠습니까?`)) return;
+    kwEntries = [];
     kwSave(); kwRender();
   };
 
