@@ -1016,6 +1016,7 @@ import HA from './store.js';
       .kw-card-body { padding:14px; }
       .kw-type-badge { display:inline-block; padding:1px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; }
       .kw-type-pcode { background:#e9d8fd; color:#553c9a; }
+      .kw-type-agency { background:#dbeafe; color:#1e40af; }
       .kw-type-mid   { background:#feebc8; color:#c05621; }
       .kw-btn-add { width:100%; padding:8px; border:none; border-radius:7px; background:#059669; color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
       .kw-btn-add:hover { background:#047857; }
@@ -1092,7 +1093,7 @@ import HA from './store.js';
           <div class="kw-upload-zone" id="kw-drop-zone" onclick="document.getElementById('kw-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / Pcode / 비즈핏 키워드 / 유입플 키워드</div>
+            <div class="uz-hint">영업점 / MID / Pcode / 비즈핏 키워드 / 유입플 키워드</div>
           </div>
           <input type="file" id="kw-file" accept=".xlsx,.xls" style="display:none" onchange="kwHandleExcel(this.files[0])">
         </div>
@@ -1254,7 +1255,7 @@ window.closeKwModal = function() {
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="kwToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#0277bd;cursor:pointer;"></td>
         <td>
           <div class="kw-td-id">${kwEsc(e.mid)}</div>
-          ${e.pcode?`<div style="margin-top:2px;"><span class="kw-type-badge kw-type-pcode" title="${kwEsc(e.pcode)}" style="cursor:default;">Pcode</span></div>`:''}
+          ${e.pcode?`<div style="margin-top:2px;"><span class="kw-type-badge kw-type-pcode" title="${kwEsc(e.pcode)}" style="cursor:default;">Pcode</span>${e.agency?` <span class="kw-type-badge kw-type-agency" title="${kwEsc(e.agency)}" style="cursor:default;">영업점</span>`:''}</div>`:''}
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
         <td>${kwCountBadge(e.keywords)}</td>
@@ -1427,7 +1428,7 @@ window.closeKwModal = function() {
     // 비즈핏/유입플을 동시에 실행 — 순서대로 돌리면 사이트 로그인이 두 번 직렬로 걸려 느려짐
     const tasks = [];
     if (bizTargets.length) {
-      const payload = bizTargets.map(e => ({ mid: e.mid, pcode: e.pcode||'', keywords: e.keywords, distribute }));
+      const payload = bizTargets.map(e => ({ mid: e.mid, pcode: e.pcode||'', agency: e.agency||'', keywords: e.keywords, distribute }));
       tasks.push(runMacroBatch(`${SERVER}/process-stream`, bizTargets, payload,
         r => kwEntries.find(e => e.mid === r.mid && (e.pcode||'') === (r.pcode||'')),
         '_bizOk', '_bizMsg', '비즈핏'));
@@ -1469,30 +1470,34 @@ window.closeKwModal = function() {
           const rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
           if (!rows.length) { kwLog('⚠️ 빈 파일입니다.', 'warn'); return; }
           // 헤더 행으로 컬럼 위치 자동 감지 (순위표 다운로드 결과를 그대로 붙여넣어도 인식되도록)
-          const hdr      = rows[0].map(h => String(h||'').trim());
-          const hasHdr   = isNaN(Number(hdr[0]));
-          const midCol   = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 0;
-          const pcodeCol = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : -1;
-          const yupflCol = hasHdr ? hdr.findIndex(h => /유입플/.test(h)) : -1;
+          const hdr       = rows[0].map(h => String(h||'').trim());
+          const hasHdr    = isNaN(Number(hdr[0]));
+          const agencyCol = hasHdr ? hdr.findIndex(h => /영업점/i.test(h)) : 0;
+          const midCol    = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 1;
+          const pcodeCol  = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : 2;
+          const yupflCol  = hasHdr ? hdr.findIndex(h => /유입플/.test(h)) : 4;
           // "유입플키워드" 헤더도 /키워드/에 걸리므로 그 열은 제외하고 찾는다
-          const kwCol    = hasHdr ? hdr.findIndex((h, i) => /키워드/i.test(h) && i !== yupflCol) : 1;
-          const start    = hasHdr ? 1 : 0;
+          const kwCol     = hasHdr ? hdr.findIndex((h, i) => /키워드/i.test(h) && i !== yupflCol) : 3;
+          const start     = hasHdr ? 1 : 0;
           let added = 0, skipped = 0;
           for (let r = start; r < rows.length; r++) {
             const row           = rows[r];
+            const agency        = agencyCol >= 0 ? String(row[agencyCol]||'').trim() : '';
             const mid           = String(row[midCol] || '').trim();
             const pcode         = pcodeCol >= 0 ? String(row[pcodeCol]||'').trim() : '';
             const keywords      = kwCol    >= 0 ? String(row[kwCol]   ||'').trim() : '';
             const yupflKeywords = yupflCol >= 0 ? String(row[yupflCol]||'').trim() : '';
             if (!mid || (!keywords && !yupflKeywords)) { skipped++; continue; }
+            // 비즈핏 키워드 변경은 pcode 기반이라 영업점·pcode 둘 다 필수(강제종료와 동일 정책) — 유입플만 쓰는 행은 면제
+            if (keywords && (!pcode || !agency)) { skipped++; continue; }
             if (kwEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { skipped++; continue; }
-            kwEntries.push({ mid, pcode, keywords, yupflKeywords, status: 'ready', result: '' });
+            kwEntries.push({ mid, pcode, agency, keywords, yupflKeywords, status: 'ready', result: '' });
             added++;
           }
           kwSave(); kwRender();
           document.getElementById('kw-file').value = '';
           if (added > 0) kwLog(`📊 엑셀 가져오기: ${added}개 추가${skipped?', '+skipped+'개 건너뜀':''}`, 'info');
-          else           kwLog('⚠️ 추가된 항목 없음 — MID 또는 키워드가 비어있거나 중복', 'warn');
+          else           kwLog('⚠️ 추가된 항목 없음 — MID·키워드가 비어있거나 중복, 또는 비즈핏 키워드 행에 영업점/Pcode 누락', 'warn');
         } catch(err) { kwLog(`❌ 엑셀 읽기 실패: ${err.message}`, 'fail'); }
       };
       reader.readAsArrayBuffer(file);
