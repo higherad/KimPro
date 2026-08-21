@@ -510,7 +510,6 @@ async function downloadRankTable() {
       .bs-srv-err { background:#fee2e2; color:#991b1b; }
       .bs-srv-chk { background:#f1f5f9; color:var(--text2); }
       .bs-pcode-badge { display:inline-block; padding:1px 6px; border-radius:100px; font-size:9.5px; font-weight:700; background:#e9d8fd; color:#553c9a; font-family:monospace; }
-      .bs-agency-badge { display:inline-block; padding:1px 6px; border-radius:100px; font-size:9.5px; font-weight:700; background:#dbeafe; color:#1e40af; }
       .excel-tpl-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:5px; background:#fff; text-decoration:none; text-transform:none; cursor:pointer; transition:all .15s; }
       .excel-tpl-btn.purple { color:#7b1fa2; border:1px solid #e9d5ff; }
       .excel-tpl-btn.purple:hover { background:#faf5ff; border-color:#7b1fa2; }
@@ -558,13 +557,14 @@ async function downloadRankTable() {
             <thead>
               <tr>
                 <th style="width:34px"></th>
+                <th>영업점</th>
                 <th>MID</th>
                 <th>처리 작업</th>
                 <th style="width:68px">상태</th>
               </tr>
             </thead>
             <tbody id="bs-tbody">
-              <tr><td colspan="4"><div class="bs-empty">📋 등록된 MID가 없습니다.</div></td></tr>
+              <tr><td colspan="5"><div class="bs-empty">📋 등록된 MID가 없습니다.</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -678,14 +678,14 @@ document.addEventListener('keydown', function(e) {
     const tbody = document.getElementById('bs-tbody');
     document.getElementById('bs-entry-count').textContent = bsEntries.length;
     if (!bsEntries.length) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="bs-empty">📋 등록된 MID가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="bs-empty">📋 등록된 MID가 없습니다.</div></td></tr>';
       bsSyncAll(); return;
     }
     const list = bsSearchQ
       ? bsEntries.filter(e => e.mid.includes(bsSearchQ) || (e.pcode||'').toLowerCase().includes(bsSearchQ))
       : bsEntries;
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="4"><div class="bs-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5"><div class="bs-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
       bsSyncAll(); return;
     }
     const sc = { ready:'bs-sb-ready', running:'bs-sb-running', success:'bs-sb-success', partial:'bs-sb-partial', fail:'bs-sb-fail' };
@@ -694,8 +694,10 @@ document.addEventListener('keydown', function(e) {
       const i = bsEntries.indexOf(e);
       return `<tr id="bs-row-${i}" class="${e.checked?'bs-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="bsToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#7b1fa2;cursor:pointer;"></td>
+        <td class="bs-td-name">${bsEsc(e.agency||'-')}</td>
         <td>
-          <div class="bs-td-mid">${bsEsc(e.mid)}${e.pcode?` <span class="bs-pcode-badge">${bsEsc(e.pcode)}</span>`:''}${e.agency?` <span class="bs-agency-badge">${bsEsc(e.agency)}</span>`:''}</div>
+          <div class="bs-td-mid">${bsEsc(e.mid)}</div>
+          ${e.pcode?`<div style="margin-top:2px;"><span class="bs-pcode-badge">${bsEsc(e.pcode)}</span></div>`:''}
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${bsEsc(e.result)}</div>`:''}
         </td>
         <td>
@@ -1016,7 +1018,6 @@ import HA from './store.js';
       .kw-card-body { padding:14px; }
       .kw-type-badge { display:inline-block; padding:1px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; }
       .kw-type-pcode { background:#e9d8fd; color:#553c9a; }
-      .kw-type-agency { background:#dbeafe; color:#1e40af; }
       .kw-type-mid   { background:#feebc8; color:#c05621; }
       .kw-btn-add { width:100%; padding:8px; border:none; border-radius:7px; background:#059669; color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
       .kw-btn-add:hover { background:#047857; }
@@ -1035,6 +1036,7 @@ import HA from './store.js';
       .kw-tbl tbody tr.kw-checked { background:#e3f2fd; }
       .kw-tbl td { padding:7px 10px; vertical-align:middle; }
       .kw-td-id { font-weight:700; color:var(--text); font-family:monospace; font-size:11.5px; }
+      .kw-td-agency { color:var(--text2); font-size:11px; }
       .kw-td-kw { color:var(--text2); font-size:11px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
       .kw-sb { display:inline-block; padding:2px 7px; border-radius:100px; font-size:10px; font-weight:700; white-space:nowrap; }
       .kw-sb-ready   { background:#f1f5f9; color:var(--text2); }
@@ -1121,6 +1123,7 @@ import HA from './store.js';
             <thead>
               <tr>
                 <th style="width:34px"></th>
+                <th>영업점</th>
                 <th>MID</th>
                 <th>비즈핏 키워드</th>
                 <th>유입플 키워드</th>
@@ -1128,7 +1131,7 @@ import HA from './store.js';
               </tr>
             </thead>
             <tbody id="kw-tbody">
-              <tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
+              <tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>
             </tbody>
           </table>
         </div>
@@ -1237,14 +1240,14 @@ window.closeKwModal = function() {
     const tbody = document.getElementById('kw-tbody');
     document.getElementById('kw-entry-count').textContent = kwEntries.length;
     if (!kwEntries.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">📋 등록된 항목이 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const list = kwSearchQ
       ? kwEntries.filter(e => e.mid.includes(kwSearchQ) || (e.pcode||'').toLowerCase().includes(kwSearchQ))
       : kwEntries;
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6"><div class="kw-empty">🔍 검색 결과가 없습니다.</div></td></tr>';
       kwSyncAll(); return;
     }
     const sc = { ready:'kw-sb-ready', running:'kw-sb-running', success:'kw-sb-success', fail:'kw-sb-fail' };
@@ -1253,9 +1256,10 @@ window.closeKwModal = function() {
       const i = kwEntries.indexOf(e);
       return `<tr id="kw-row-${i}" class="${e.checked?'kw-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="kwToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#0277bd;cursor:pointer;"></td>
+        <td class="kw-td-agency">${kwEsc(e.agency||'-')}</td>
         <td>
           <div class="kw-td-id">${kwEsc(e.mid)}</div>
-          ${e.pcode?`<div style="margin-top:2px;"><span class="kw-type-badge kw-type-pcode" title="${kwEsc(e.pcode)}" style="cursor:default;">Pcode</span>${e.agency?` <span class="kw-type-badge kw-type-agency" title="${kwEsc(e.agency)}" style="cursor:default;">영업점</span>`:''}</div>`:''}
+          ${e.pcode?`<div style="margin-top:2px;"><span class="kw-type-badge kw-type-pcode" title="${kwEsc(e.pcode)}" style="cursor:default;">Pcode</span></div>`:''}
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${kwEsc(e.result)}</div>`:''}
         </td>
         <td>${kwCountBadge(e.keywords)}</td>
