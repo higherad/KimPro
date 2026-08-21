@@ -510,6 +510,7 @@ async function downloadRankTable() {
       .bs-srv-err { background:#fee2e2; color:#991b1b; }
       .bs-srv-chk { background:#f1f5f9; color:var(--text2); }
       .bs-pcode-badge { display:inline-block; padding:1px 6px; border-radius:100px; font-size:9.5px; font-weight:700; background:#e9d8fd; color:#553c9a; font-family:monospace; }
+      .bs-agency-badge { display:inline-block; padding:1px 6px; border-radius:100px; font-size:9.5px; font-weight:700; background:#dbeafe; color:#1e40af; }
       .excel-tpl-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:5px; background:#fff; text-decoration:none; text-transform:none; cursor:pointer; transition:all .15s; }
       .excel-tpl-btn.purple { color:#7b1fa2; border:1px solid #e9d5ff; }
       .excel-tpl-btn.purple:hover { background:#faf5ff; border-color:#7b1fa2; }
@@ -529,7 +530,7 @@ async function downloadRankTable() {
           <div class="bs-upload-zone" id="bs-drop-zone" onclick="document.getElementById('bs-file').click()">
             <div class="uz-icon">📊</div>
             <div class="uz-text">클릭 또는 드래그 업로드</div>
-            <div class="uz-hint">MID / Pcode(필수) / 임시중단B(O) / 강제종료(O)</div>
+            <div class="uz-hint">영업점 / MID / Pcode / 임시중단B(O) / 강제종료(O)</div>
           </div>
           <input type="file" id="bs-file" accept=".xlsx,.xls" style="display:none" onchange="bsHandleExcel(this.files[0])">
         </div>
@@ -694,7 +695,7 @@ document.addEventListener('keydown', function(e) {
       return `<tr id="bs-row-${i}" class="${e.checked?'bs-checked':''}">
         <td><input type="checkbox" ${e.checked?'checked':''} onchange="bsToggleItem(${i},this)" style="width:14px;height:14px;accent-color:#7b1fa2;cursor:pointer;"></td>
         <td>
-          <div class="bs-td-mid">${bsEsc(e.mid)}${e.pcode?` <span class="bs-pcode-badge">${bsEsc(e.pcode)}</span>`:''}</div>
+          <div class="bs-td-mid">${bsEsc(e.mid)}${e.pcode?` <span class="bs-pcode-badge">${bsEsc(e.pcode)}</span>`:''}${e.agency?` <span class="bs-agency-badge">${bsEsc(e.agency)}</span>`:''}</div>
           ${e.result?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">${bsEsc(e.result)}</div>`:''}
         </td>
         <td>
@@ -729,7 +730,7 @@ document.addEventListener('keydown', function(e) {
     if (bsCloseBtn) { bsCloseBtn.disabled = true; bsCloseBtn.style.opacity = '0.3'; bsCloseBtn.style.cursor = 'not-allowed'; }
     document.getElementById('bs-btn-run').disabled = true;
     document.getElementById('bs-prog-wrap').style.display = 'block';
-    const payload = selected.map(e => ({ mid: e.mid, pcode: e.pcode||'', do_pause: e.do_pause, do_force: e.do_force }));
+    const payload = selected.map(e => ({ mid: e.mid, pcode: e.pcode||'', agency: e.agency||'', do_pause: e.do_pause, do_force: e.do_force }));
     selected.forEach(e => { e.status = 'running'; e.result = ''; });
     bsRender();
     bsLog(`▶ 시작 — ${selected.length}개 항목${skipped?' (완료 '+skipped+'건 건너뜀)':''}`, 'info');
@@ -822,33 +823,35 @@ document.addEventListener('keydown', function(e) {
           const rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
           if (!rows.length) { bsLog('⚠️ 빈 파일입니다.', 'warn'); return; }
           // 헤더 행으로 컬럼 위치 자동 감지
-          const hdr      = rows[0].map(h => String(h||'').trim());
-          const hasHdr   = isNaN(Number(hdr[0]));
-          const midCol   = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 0;
-          const pcodeCol = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : -1;
-          const pauseCol = hasHdr ? hdr.findIndex(h => /임시중단/i.test(h)) : 1;
-          const forceCol = hasHdr ? hdr.findIndex(h => /강제종료/i.test(h)) : 2;
-          const start    = hasHdr ? 1 : 0;
+          const hdr       = rows[0].map(h => String(h||'').trim());
+          const hasHdr    = isNaN(Number(hdr[0]));
+          const agencyCol = hasHdr ? hdr.findIndex(h => /영업점/i.test(h)) : -1;
+          const midCol    = hasHdr ? Math.max(hdr.findIndex(h => /mid/i.test(h)), 0) : 1;
+          const pcodeCol  = hasHdr ? hdr.findIndex(h => /pcode/i.test(h)) : -1;
+          const pauseCol  = hasHdr ? hdr.findIndex(h => /임시중단/i.test(h)) : 3;
+          const forceCol  = hasHdr ? hdr.findIndex(h => /강제종료/i.test(h)) : 4;
+          const start     = hasHdr ? 1 : 0;
           let added = 0, skipped = 0;
           for (let r = start; r < rows.length; r++) {
             const row      = rows[r];
+            const agency   = agencyCol >= 0 ? String(row[agencyCol]||'').trim() : '';
             const mid      = String(row[midCol]   ||'').trim();
             const pcodeRaw = pcodeCol >= 0 ? String(row[pcodeCol]||'').trim() : '';
             const do_pause = pauseCol >= 0 && String(row[pauseCol]||'').trim().toUpperCase() === 'O';
             const do_force = forceCol >= 0 && String(row[forceCol]||'').trim().toUpperCase() === 'O';
-            if (!mid || !pcodeRaw || (!do_pause && !do_force)) { skipped++; continue; }
+            if (!agency || !mid || !pcodeRaw || (!do_pause && !do_force)) { skipped++; continue; }
             // Pcode 칸에 콤마로 여러 개가 들어있으면(순위표에서 그대로 복사) 각각 별도 항목으로 펼침
             const pcodes = pcodeRaw.split(',').map(p => p.trim()).filter(Boolean);
             for (const pcode of pcodes) {
               if (bsEntries.some(e => e.mid === mid && (e.pcode||'') === pcode)) { skipped++; continue; }
-              bsEntries.push({ mid, pcode, do_pause, do_force, status:'ready', result:'' });
+              bsEntries.push({ mid, pcode, agency, do_pause, do_force, status:'ready', result:'' });
               added++;
             }
           }
           bsSave(); bsRender();
           document.getElementById('bs-file').value = '';
           if (added > 0) bsLog(`📊 엑셀: ${added}개 추가${skipped?', '+skipped+'개 건너뜀':''}`, 'info');
-          else           bsLog('⚠️ 추가된 항목 없음 — MID·Pcode·처리 작업 중 비어있거나 중복', 'warn');
+          else           bsLog('⚠️ 추가된 항목 없음 — 영업점·MID·Pcode·처리 작업 중 비어있거나 중복', 'warn');
         } catch(err) { bsLog(`❌ 엑셀 읽기 실패: ${err.message}`, 'fail'); }
       };
       reader.readAsArrayBuffer(file);
