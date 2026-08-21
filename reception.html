@@ -1648,7 +1648,7 @@ import HA from './store.js';
 .cr-log-line.cr-log-fail    .cr-log-msg{color:#fc8181;}
 .cr-log-line.cr-log-info    .cr-log-msg{color:#4fd1c5;}
 .cr-log-line.cr-log-warn    .cr-log-msg{color:#f6e05e;}
-.cr-mid-input-wrap{display:flex;align-items:center;gap:6px;background:#f0f2f5;border:1.5px solid #e2e8f0;border-radius:7px;padding:4px 10px;transition:border-color .2s;}
+.cr-mid-input-wrap{display:flex;align-items:center;gap:6px;background:#f0f2f5;border:1.5px solid #e2e8f0;border-radius:7px;padding:4px 10px;height:33px;transition:border-color .2s;}
 .cr-mid-input-wrap:focus-within{border-color:#00897b;background:#fff;}
 .cr-mid-input-wrap label{font-size:11px;font-weight:700;color:#718096;white-space:nowrap;}
 .cr-mid-input-wrap input{border:none;background:transparent;outline:none;font-size:13px;font-family:monospace;color:#2d3748;width:130px;padding:0;height:22px;}
@@ -1666,7 +1666,7 @@ import HA from './store.js';
         <label>MID</label>
         <input type="text" id="cr-inp-mid" placeholder="비우면 전체 조회" inputmode="numeric" onkeydown="if(event.key==='Enter')crLoadList()">
       </div>
-      <button class="cr-btn-teal" id="cr-btn-load" onclick="crLoadList()" style="flex-shrink:0;">🔄 목록 불러오기</button>
+      <button class="cr-btn-teal" id="cr-btn-load" onclick="crLoadList()" style="flex-shrink:0;height:33px;">🔄 목록 불러오기</button>
       <div style="flex:1;"></div>
       <button onclick="closeCrModal()" style="border:none;background:#f1f5f9;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:1;flex-shrink:0;">✕</button>
     </div>
