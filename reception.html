@@ -5851,9 +5851,10 @@ window.closeUexModal = function() {
   // 한 plan(대행사별 rows)을 실제로 비즈핏에 등록 — UI(버튼/탭잠금)는 손대지 않고 결과 집계만 반환.
   // executeSubmit(단일 탭)과 executeBlogSubmit(델타+네이비 동시 제출)이 공유한다.
   async function submitPlanRows(plan, gate, legKey, adrole) {
-    // NP위치저장(adrole=100) 계열은 ajax.excel_version.php 동적 조회가 빈 값을 반환해 기본 폴백 버전과
-    // 어긋나 "버전체크 실패"로 거부됨(실측) — 상품 설정에 저장된 ver를 그대로 넘겨 우회한다.
-    const verSourceId = legKey === 'charlieKeys' ? 'charlie' : legKey === 'deltaKeys' ? 'delta' : null;
+    // NP위치저장(adrole=100) 계열(찰리/델타)은 ajax.excel_version.php 동적 조회가 빈 값을 반환해 기본
+    // 폴백 버전과 어긋나 "버전체크 실패"로 거부됨(실측) — 상품 설정에 저장된 ver를 그대로 넘겨 우회한다.
+    // 네이비도 2026-08-25 동일 증상 확인되어 포함(등록 시 이 override가 없으면 상품 설정의 ver를 바꿔도 전혀 전송되지 않음).
+    const verSourceId = legKey === 'charlieKeys' ? 'charlie' : legKey === 'deltaKeys' ? 'delta' : legKey === 'navyKeys' ? 'navy' : null;
     const productVer = verSourceId ? ap().find(p => p.id === verSourceId)?.ver : undefined;
     let okTotal = 0, failTotal = 0;
     const slotMap = new Map(allSlots.map(s => [s._key, s]));
