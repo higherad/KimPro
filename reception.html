@@ -5540,6 +5540,37 @@ window.closeUexModal = function() {
       const navyAlreadyDone    = alreadyDoneOf(rowsBySlotOf(data.navyPlan.flatMap(p => p.rows)), '_normalSubmitted');
       const fixedAlreadyDone   = alreadyDoneOf(rowsBySlotOf(data.yupflRows), '_fixedSubmitted');
 
+      // 슬롯별로 실제 쓰는 레그 집합 — rows에 그 슬롯(_slotKey)이 등장하는지로 판단(higher와 동일 패턴).
+      // ⚠️ 예전엔 "primary 레그(normalKeys 우선) 완료된 슬롯만 훑고 나머지 레그도 됐는지 확인"하는 방식이었는데,
+      // 등급 자동매칭으로 한 슬롯의 배분이 통째로 charlieKeys 등 비-primary 레그 하나로만 몰릴 수 있게 되면서
+      // 그 슬롯이 primary(normalKeys)엔 아예 행이 없어 영원히 후보에 안 잡히는 버그가 있었음(2026-08-26 수정) —
+      // 슬롯마다 "자기가 실제로 쓰는 레그만" 요구하는 방식으로 교체.
+      const requiredLegsByKey = new Map(); // slotKey -> Set('normalKeys'|'fixedKeys'|'charlieKeys'|'deltaKeys'|'navyKeys')
+      const addRequired = (rows, leg) => rows.forEach(r => {
+        if (!r._slotKey) return;
+        if (!requiredLegsByKey.has(r._slotKey)) requiredLegsByKey.set(r._slotKey, new Set());
+        requiredLegsByKey.get(r._slotKey).add(leg);
+      });
+      addRequired(data.normalPlan.flatMap(p => p.rows), 'normalKeys');
+      addRequired(data.charliePlan.flatMap(p => p.rows), 'charlieKeys');
+      addRequired(data.deltaPlan.flatMap(p => p.rows), 'deltaKeys');
+      addRequired(data.navyPlan.flatMap(p => p.rows), 'navyKeys');
+      addRequired(data.yupflRows, 'fixedKeys');
+      const slotMapAll = new Map(allSlots.map(s => [s._key, s]));
+      // 재접수(isRequeue) 슬롯은 유입플을 실제로 접수하지 않고 배분값 확인용으로만 켜두는 경우가 있어
+      // fixedKeys만 예외로 면제(다른 레그는 그대로 요구) — 예전엔 이 예외가 "레그 하나만 끝나도 전부 스킵"으로
+      // 잘못 구현돼 있었음(재접수 승인 게이트 우회 버그, 이번에 같이 수정됨).
+      function readyKeysOf(doneSets) {
+        return [...requiredLegsByKey.entries()]
+          .filter(([k, req]) => {
+            const s = slotMapAll.get(k);
+            if (s?.status === 'active') return false;
+            const need = s?.isRequeue ? [...req].filter(l => l !== 'fixedKeys') : [...req];
+            return need.every(leg => doneSets[leg] && doneSets[leg].has(k));
+          })
+          .map(([k]) => k);
+      }
+
       const activeLegs = [];
       if (data.hasNormal)  activeLegs.push('normalKeys');
       if (data.hasFixed)   activeLegs.push('fixedKeys');
@@ -5547,28 +5578,14 @@ window.closeUexModal = function() {
       if (data.hasDelta)   activeLegs.push('deltaKeys');
       if (data.hasNavy)    activeLegs.push('navyKeys');
       const gate = (activeLegs.length > 1) ? {
-        legs: activeLegs,
         normalKeys:  normalAlreadyDone.size  ? normalAlreadyDone  : null,
         fixedKeys:   fixedAlreadyDone.size   ? fixedAlreadyDone   : null,
         charlieKeys: charlieAlreadyDone.size ? charlieAlreadyDone : null,
         deltaKeys:   deltaAlreadyDone.size   ? deltaAlreadyDone   : null,
         navyKeys:    navyAlreadyDone.size    ? navyAlreadyDone    : null,
-        slotMap: new Map(allSlots.map(s => [s._key, s])),
+        slotMap: slotMapAll,
         async tryApprove() {
-          // 재접수 우회는 일반/찰리/델타/네이비(실제 상품)만 자격 — 유입플은 단독 활성일 때만 즉시승인, 다른 상품과 같이 있으면 절대 우회 트리거 불가. primary는 legs[0]이 아닌 normalKeys→charlieKeys→deltaKeys→navyKeys 우선으로 명시 선택
-          const primary = this.legs.includes('normalKeys')  ? 'normalKeys'
-                         : this.legs.includes('charlieKeys') ? 'charlieKeys'
-                         : this.legs.includes('deltaKeys')   ? 'deltaKeys'
-                         : this.legs.includes('navyKeys')    ? 'navyKeys'
-                         : this.legs[0];
-          const rest = this.legs.filter(l => l !== primary);
-          if (this[primary] === null) return;
-          // 재접수(isRequeue) 슬롯은 다른 탭 완료 여부 무관하게 일반/찰리 중 하나만 끝나면 승인 — finalizeSlotApprovals()의 즉시승인 우회와 동일 예외를 재오픈 정합화에도 적용(한 탭만 끝난 채 재오픈해도 승인 전환되게)
-          const keys = [...this[primary]].filter(k => {
-            const s = this.slotMap.get(k);
-            if (s && s.isRequeue) return true;
-            return rest.every(l => this[l] && this[l].has(k));
-          });
+          const keys = readyKeysOf(this);
           if (keys.length) {
             // normalDoneProducts/fixedSubmitted는 접수 완료 이력이므로 승인 후에도 계속 보관(삭제하지 않음)
             await Promise.all(keys.map(k => HA.updateSlot(k, { status: 'active' })));
@@ -6049,7 +6066,9 @@ window.closeUexModal = function() {
     // 폴백 버전과 어긋나 "버전체크 실패"로 거부됨(실측) — 상품 설정에 저장된 ver를 그대로 넘겨 우회한다.
     // 네이비도 2026-08-25 동일 증상 확인되어 포함(등록 시 이 override가 없으면 상품 설정의 ver를 바꿔도 전혀 전송되지 않음).
     const verSourceId = legKey === 'charlieKeys' ? 'charlie' : legKey === 'deltaKeys' ? 'delta' : legKey === 'navyKeys' ? 'navy' : null;
-    const productVer = verSourceId ? ap().find(p => p.id === verSourceId)?.ver : undefined;
+    // ap()(활성 상품만)이 아니라 prods 전체에서 찾는다 — 등급 자동매칭은 비활성 상품도 매칭해 접수시키므로
+    // ap()로 찾으면 찰리/델타/네이비가 비활성일 때 undefined가 되어 버전 override가 안 실려 "버전체크 실패"로 이어짐.
+    const productVer = verSourceId ? prods.find(p => p.id === verSourceId)?.ver : undefined;
     let okTotal = 0, failTotal = 0;
     const slotMap = new Map(allSlots.map(s => [s._key, s]));
     const approvedKeys = gate ? new Set() : null;
