@@ -3906,8 +3906,8 @@ window.closeUexModal = function() {
     _prodModalId = null;
   };
   // 엑셀 버전 새로고침 — 비즈핏 사이트에 등급명으로 직접 조회해 pm-ver를 최신값으로 채운다.
-  // 등급이 가장 최신화된 계정(사용자 지정, 2026-08-27)을 우선 사용, 없으면 등록된 계정 아무거나 폴백
-  // (버전은 계정이 아니라 등급 자체에 매겨지는 값이라 폴백해도 무관).
+  // 조회 계정은 오렌지(orangeplanet1@naver.com)로 고정(사용자 지정, 2026-08-27 — 이 계정이 등급이
+  // 가장 최신화됨). 폴백 없음 — 이 계정이 없거나 등급을 못 찾으면 명확히 실패 표시.
   const PREFERRED_VERSION_ACCOUNT_ID = 'orangeplanet1@naver.com';
   window.refreshProdVersion = async function() {
     const p = prods.find(x => x.id === _prodModalId); if (!p) return;
@@ -3916,9 +3916,8 @@ window.closeUexModal = function() {
     const cu = window.HA?.getCurrentUser?.();
     if (!cu) { alert('로그인 상태를 확인해주세요.'); return; }
     const accounts = await window.HA.getChargeAccounts(cu.username).catch(() => ({}));
-    const accountList = Object.values(accounts);
-    const account = accountList.find(a => a.id === PREFERRED_VERSION_ACCOUNT_ID) || accountList[0];
-    if (!account) { alert('등록된 비즈핏 계정이 없습니다 — 🔑 계정 설정에서 먼저 등록해주세요.'); return; }
+    const account = Object.values(accounts).find(a => a.id === PREFERRED_VERSION_ACCOUNT_ID);
+    if (!account) { alert('버전 조회용 계정(오렌지)이 🔑 계정 설정에 등록돼 있지 않습니다.'); return; }
     const adrole = p.id === 'charlie' ? CHARLIE_ADROLE : p.id === 'delta' ? DELTA_ADROLE : undefined;
     btn.disabled = true; const prevIcon = btn.textContent; btn.textContent = '⏳';
     try {
