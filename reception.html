@@ -3907,16 +3907,15 @@ window.closeUexModal = function() {
   };
   // 엑셀 버전 새로고침 — 비즈핏 사이트에 등급명으로 직접 조회해 pm-ver를 최신값으로 채운다.
   // 조회 계정은 오렌지(orangeplanet1@naver.com)로 고정(사용자 지정, 2026-08-27 — 이 계정이 등급이
-  // 가장 최신화됨). 폴백 없음 — 이 계정이 없거나 등급을 못 찾으면 명확히 실패 표시.
-  const PREFERRED_VERSION_ACCOUNT_ID = 'orangeplanet1@naver.com';
+  // 가장 최신화됨). kimpro/charge_accounts는 로그인 코드(kimpro/member)별로 따로 저장돼 로그인한
+  // 코드에 따라 계정이 안 보일 수 있어(실제로 "member"로 로그인 시 재현됨) — 로그인 코드와 무관하게
+  // kimpro/version_check_account 전용 노드에 이 계정만 별도 저장해 그걸 씀. 폴백 없음.
   window.refreshProdVersion = async function() {
     const p = prods.find(x => x.id === _prodModalId); if (!p) return;
     const btn = document.getElementById('pm-ver-refresh');
     const verEl = document.getElementById('pm-ver');
-    const cu = window.HA?.getCurrentUser?.();
-    if (!cu) { alert('로그인 상태를 확인해주세요.'); return; }
-    const accounts = await window.HA.getChargeAccounts(cu.username).catch(() => ({}));
-    const account = Object.values(accounts).find(a => a.id === PREFERRED_VERSION_ACCOUNT_ID);
+    const accSnap = await HA.getDoc('kimpro/version_check_account').catch(() => null);
+    const account = accSnap?.exists() ? accSnap.val() : null;
     if (!account) { alert('버전 조회용 계정이 등록돼 있지 않습니다.'); return; }
     const adrole = p.id === 'charlie' ? CHARLIE_ADROLE : p.id === 'delta' ? DELTA_ADROLE : undefined;
     btn.disabled = true; const prevIcon = btn.textContent; btn.textContent = '⏳';
