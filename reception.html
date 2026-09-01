@@ -5913,7 +5913,7 @@ window.closeUexModal = function() {
       const portions = lrm(schedule.map((s, i) => ({ id: i, ratio: s.pct })), r.일목표);
       schedule.forEach((s, i) => {
         const p = portions[i] || 0;
-        if (p > 0 && p < min) violations.push({ name: r.상품등급명, agency: r.업체명, target: r.일목표, time: s.time, pct: s.pct, portion: p, min });
+        if (p > 0 && p < min) violations.push({ name: r.상품등급명, time: s.time, portion: p, min });
       });
     });
     return violations;
@@ -5970,9 +5970,9 @@ window.closeUexModal = function() {
     if (pastRows.length) { alert(`이미 지난 시각은 설정할 수 없습니다: ${pastRows.map(r=>r.time).join(', ')}`); return; }
     const violations = scheduleMinViolations(scheduleValidationRows, scheduleDraftRows);
     if (violations.length) {
-      const lines = violations.slice(0, 5).map(v => `- ${v.agency} ${v.name}: 일목표 ${v.target} × ${v.time}(${v.pct}%) = ${v.portion}개 (최소 ${v.min} 필요)`);
-      if (violations.length > 5) lines.push(`...외 ${violations.length - 5}건`);
-      alert(`이 시간대 구성으로 쪼개면 최소 수량 미만인 조각이 생겨 그만큼 목표가 덜 채워집니다. 시간 개수를 줄이거나 비율을 조정해주세요.\n\n${lines.join('\n')}`);
+      const lines = violations.slice(0, 5).map(v => `- ${v.name} ${v.time} → ${v.portion}개 (최소 ${v.min})`);
+      if (violations.length > 5) lines.push(`외 ${violations.length - 5}건`);
+      alert(`최소 수량 미만으로 쪼개져 적용할 수 없습니다. 시간 개수를 줄이거나 비율을 조정해주세요.\n${lines.join('\n')}`);
       return;
     }
     scheduleConfig = scheduleDraftRows.map(r => ({ time: r.time, pct: Number(r.pct)||0 }));
