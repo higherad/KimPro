@@ -5548,6 +5548,7 @@ window.closeUexModal = function() {
     // 등급 자동매칭이 buildNormalRows/buildDeltaRows에서 동기적으로 GRADE_CACHE를 읽으므로 먼저 채워둔다.
     await fetchGradesBatch([...new Set(target.map(s => s.mid).filter(Boolean))]);
     let data = await computeSubmitData(target);
+    scheduleValidationRows = flattenScheduleRows(data);
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -5833,6 +5834,7 @@ window.closeUexModal = function() {
       if (gmIcon) gmIcon.style.background = gradeMatchOn ? '#16a34a' : '#94a3b8';
       const keepTab = ['normal','fixed','charlie','blog'].find(k => overlay.querySelector(`#stab-panel-${k}`)?.style.display === 'block');
       data = await computeSubmitData(target);
+      scheduleValidationRows = flattenScheduleRows(data);
       applyTabState(keepTab);
       fillBody();
     };
@@ -5870,6 +5872,7 @@ window.closeUexModal = function() {
       bsubBulkBtn.disabled = false; bsubBulkBtn.textContent = '🔗 블로그URL 일괄조회';
       const keepTab = ['normal','fixed','charlie','blog'].find(k => overlay.querySelector(`#stab-panel-${k}`)?.style.display === 'block');
       data = await computeSubmitData(target);
+      scheduleValidationRows = flattenScheduleRows(data);
       applyTabState(keepTab);
       fillBody();
     };
@@ -5895,6 +5898,26 @@ window.closeUexModal = function() {
 
   // ── 시간대 분할 예약 편집기 (접수 확인 모달 상단) ────────────────────
   let scheduleDraftRows = [{ time: '10:00', pct: 100 }];
+  // "적용" 시점에 최소 수량 위반을 미리 막기 위한 검증 대상 행 — renderSubmitModal이 data를 계산/재계산할 때마다 갱신
+  let scheduleValidationRows = [];
+  function flattenScheduleRows(data) {
+    return [...data.normalPlan, ...data.charliePlan, ...data.deltaPlan, ...data.navyPlan].flatMap(p => p.rows);
+  }
+  // schedule 설정대로 쪼갰을 때 한 조각이라도 비즈핏 최소 수량(일반 10 / NP위치저장 100) 미만이 되는 행을 찾음 —
+  // 접수 시점에 조용히 버려지는 대신(목표 미달) 여기서 미리 막는다.
+  function scheduleMinViolations(rows, schedule) {
+    const violations = [];
+    rows.forEach(r => {
+      if (!(r.일목표 > 0)) return;
+      const min = r._daysMultiplied ? 100 : 10;
+      const portions = lrm(schedule.map((s, i) => ({ id: i, ratio: s.pct })), r.일목표);
+      schedule.forEach((s, i) => {
+        const p = portions[i] || 0;
+        if (p > 0 && p < min) violations.push({ name: r.상품등급명, agency: r.업체명, target: r.일목표, time: s.time, pct: s.pct, portion: p, min });
+      });
+    });
+    return violations;
+  }
 
   // %만 바뀌었을 때(updateScheduleRow) 행 전체를 다시 그리면 입력 중인 포커스/커서가 끊기므로,
   // 합계 표시만 따로 갱신하는 헬퍼로 분리 — renderScheduleRows(행 추가/삭제 시)와 공유.
@@ -5945,6 +5968,13 @@ window.closeUexModal = function() {
     const now = new Date();
     const pastRows = scheduleDraftRows.filter(r => new Date(scheduleTimeToIso(r.time)) <= now);
     if (pastRows.length) { alert(`이미 지난 시각은 설정할 수 없습니다: ${pastRows.map(r=>r.time).join(', ')}`); return; }
+    const violations = scheduleMinViolations(scheduleValidationRows, scheduleDraftRows);
+    if (violations.length) {
+      const lines = violations.slice(0, 5).map(v => `- ${v.agency} ${v.name}: 일목표 ${v.target} × ${v.time}(${v.pct}%) = ${v.portion}개 (최소 ${v.min} 필요)`);
+      if (violations.length > 5) lines.push(`...외 ${violations.length - 5}건`);
+      alert(`이 시간대 구성으로 쪼개면 최소 수량 미만인 조각이 생겨 그만큼 목표가 덜 채워집니다. 시간 개수를 줄이거나 비율을 조정해주세요.\n\n${lines.join('\n')}`);
+      return;
+    }
     scheduleConfig = scheduleDraftRows.map(r => ({ time: r.time, pct: Number(r.pct)||0 }));
     const icon = document.getElementById('schedule-toggle-icon');
     if (icon) icon.style.background = '#f59e0b';
