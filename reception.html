@@ -6494,6 +6494,17 @@ window.closeUexModal = function() {
     renderSplitScheduleList();
   };
 
+  // 검색/필터 결과가 접힌 그룹에 가려 안 바뀐 것처럼 보이지 않도록 실행할 때마다 전체 펼침
+  window.runScheduleSearch = function() {
+    _ssCollapsed = new Set();
+    renderSplitScheduleList();
+  };
+
+  window.clearScheduleSearch = function() {
+    document.getElementById('ss-search').value = '';
+    runScheduleSearch();
+  };
+
   // 다른 키워드칸의 개수 배지(kwCountBadge, 콤마 개수 세는 방식)와 동일한 스타일 — 그쪽은 IIFE
   // 안에 갇혀 있어 이 모듈 스크립트에서 못 부르므로 로컬로 하나 더 둔다.
   function ssKwCountBadge(str) {
@@ -7085,10 +7096,13 @@ window.closeUexModal = function() {
       <button onclick="closeSplitScheduleModal()" style="border:none;background:#f1f5f9;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;line-height:1;">✕</button>
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-      <input type="text" id="ss-search" placeholder="🔍 업체명 / PID / 키워드 검색" onkeydown="if(event.key==='Enter')renderSplitScheduleList()"
-        style="flex:1;min-width:200px;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-      <button onclick="renderSplitScheduleList()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;">검색</button>
-      <select id="ss-status-filter" onchange="renderSplitScheduleList()"
+      <div style="position:relative;flex:1;min-width:200px;">
+        <input type="text" id="ss-search" placeholder="🔍 업체명 / PID / 키워드 검색" onkeydown="if(event.key==='Enter')runScheduleSearch()"
+          style="width:100%;box-sizing:border-box;padding:7px 28px 7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        <button onclick="clearScheduleSearch()" title="검색어 지우기" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 4px;line-height:1;">✕</button>
+      </div>
+      <button onclick="runScheduleSearch()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;">검색</button>
+      <select id="ss-status-filter" onchange="runScheduleSearch()"
         style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
         <option value="all" selected>전체</option>
         <option value="done">완료</option>
