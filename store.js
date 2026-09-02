@@ -159,6 +159,9 @@ const HA = {
 
   async getDoc(path) { return get(ref(db, path)); },
   async setDoc(path, val) { return set(ref(db, path), val); },
+  // patch: RTDB 멀티패스 업데이트 — 키에 '/'를 쓰면 path 하위 여러 위치를 한 번에 갱신 가능
+  // (예: updateDoc(`a/${key}`, {'payload/gradeName': x, 'payload/rowData/0/상품등급명': x}))
+  async updateDoc(path, patch) { return update(ref(db, path), patch); },
   async removeDoc(path) { return remove(ref(db, path)); },
   // 경로 하나를 실시간 구독 — 콜백엔 raw snapshot을 그대로 넘김(getDoc과 동일 형태).
   // 반환값은 구독 해제 함수.

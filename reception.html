@@ -60,6 +60,7 @@
     <button class="header-nav-btn" onclick="openYupflSettleModal();closeMobileNav()">💳 유입플 정산</button>
     <button class="header-nav-btn" id="backlink-rank-btn" onclick="downloadBacklinkRank();closeMobileNav()">🔗 백링크 순위</button>
     <button class="header-nav-btn" id="rank-table-btn" onclick="downloadRankTable();closeMobileNav()">📈 순위표</button>
+    <button class="header-nav-btn" id="split-schedule-btn" onclick="openSplitScheduleModal();closeMobileNav()">⏰ 분할접수</button>
   </nav>
   <button class="hamburger-btn" onclick="toggleMobileNav()" aria-label="메뉴"><span></span><span></span><span></span></button>
 </header>
@@ -6407,6 +6408,141 @@ window.closeUexModal = function() {
       `[환불] 유입플 세팅 금액 : ${totalAmount.toLocaleString()}원`;
   }
 
+  // ════════════════════════════════════════════════════════
+  // 분할접수 현황 — kimpro/scheduled_dispatch 조회 전용(읽기만). 서버(bizfit-direct-proxy)가
+  // sendAt 시각에 맞춰 순서대로 꺼내 전송한 뒤 항목을 지우므로, 이 경로에 남아있는 것 = 아직
+  // 전송 안 된(예약 대기 중인) 항목. 별도 "완료 로그"는 서버 쪽에 없어 여기선 보여줄 수 없다.
+  // ════════════════════════════════════════════════════════
+
+  let _ssEntries = {}; // key -> entry, 등급 변경 시 저장된 계정정보(loginId/pwd) 조회용
+
+  window.openSplitScheduleModal = async function() {
+    const modal = document.getElementById('split-schedule-modal');
+    modal.style.display = 'flex';
+    document.getElementById('ss-list').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>불러오는 중...</div>';
+    document.getElementById('ss-count').textContent = '';
+
+    const snap = await HA.getDoc('kimpro/scheduled_dispatch');
+    const val = snap.exists() ? snap.val() : {};
+    _ssEntries = {};
+    Object.entries(val).forEach(([k, v]) => { _ssEntries[k] = { ...v, _key: k }; });
+    renderSplitScheduleList(Object.values(_ssEntries));
+  };
+
+  window.closeSplitScheduleModal = function() {
+    document.getElementById('split-schedule-modal').style.display = 'none';
+  };
+
+  function renderSplitScheduleList(entries) {
+    const listEl = document.getElementById('ss-list');
+    entries.sort((a,b) => (a.sendAt||'').localeCompare(b.sendAt||''));
+
+    if (!entries.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;">현재 예약 대기 중인 항목이 없습니다.</div>';
+    } else {
+      listEl.innerHTML = `
+        <table class="ag-table" style="table-layout:fixed;">
+          <thead><tr>
+            <th style="text-align:center;width:13%">전송예정</th>
+            <th style="text-align:center;width:16%">업체명</th><th style="text-align:center;width:10%">PID</th>
+            <th style="text-align:center;width:14%">상품/등급</th><th style="text-align:center;width:18%">검색키워드</th>
+            <th style="text-align:center;width:7%">일목표</th><th style="text-align:center;width:6%">일수</th>
+            <th style="text-align:center;width:9%">예약일</th><th style="text-align:center;width:7%">상태</th>
+          </tr></thead>
+          <tbody>
+            ${entries.map(e => {
+              const row = (e.payload?.rowData || [])[0] || {};
+              return `
+              <tr>
+                <td style="text-align:center;font-size:11px;color:var(--text2);white-space:nowrap;">${fmtSettleTime(e.sendAt)}</td>
+                <td style="text-align:center" title="순위키워드: ${escProd(row.순위키워드||'-')}">${escProd(row.업체명||'-')}</td>
+                <td style="text-align:center;font-size:11px;color:var(--text2)">${escProd(row.PID번호||'-')}</td>
+                <td id="ss-grade-${e._key}" style="text-align:center">
+                  <span>${escProd(e.payload?.gradeName || row.상품등급명 || '-')}</span>
+                  <button onclick="editScheduleGrade('${e._key}')" title="등급 변경" style="border:none;background:none;cursor:pointer;font-size:11px;margin-left:2px;padding:0;">✏️</button>
+                </td>
+                <td style="text-align:center">
+                  <input type="text" value="${escProd(row.검색키워드||'')}" placeholder="검색키워드"
+                    onblur="saveScheduleKeyword('${e._key}',this)" onkeydown="if(event.key==='Enter')this.blur()"
+                    style="width:100%;font-size:12px;font-family:inherit;padding:3px 6px;border:1px solid var(--border);border-radius:5px;text-align:center;box-sizing:border-box;">
+                </td>
+                <td style="text-align:center">${(row.일목표||0).toLocaleString()}</td>
+                <td style="text-align:center">${row.일수||0}</td>
+                <td style="text-align:center">${escProd(row.예약일||'-')}</td>
+                <td style="text-align:center">${escProd(e.status||'pending')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    document.getElementById('ss-count').textContent = `전체 ${entries.length}건`;
+  }
+
+  // 검색키워드 변경 — 실제 접수 시 서버에 그대로 전송되는 값이라 payload.rowData[0]만 patch하면 충분
+  window.saveScheduleKeyword = async function(key, inputEl) {
+    const val = inputEl.value.trim();
+    inputEl.disabled = true;
+    try {
+      await HA.updateDoc(`kimpro/scheduled_dispatch/${key}/payload/rowData/0`, { 검색키워드: val });
+      if (_ssEntries[key]) {
+        const row = (_ssEntries[key].payload.rowData || [])[0]; if (row) row.검색키워드 = val;
+      }
+      inputEl.style.borderColor = 'var(--accent)';
+      setTimeout(() => { inputEl.style.borderColor = 'var(--border)'; }, 800);
+    } catch(e) {
+      alert('키워드 저장 실패: ' + (e.message||e));
+    } finally {
+      inputEl.disabled = false;
+    }
+  };
+
+  // 상품 등급 변경 — gradeName만 바꾸면 안 되고(classType/gradeType/tab이 그 등급 전용 값과 짝을 이뤄야
+  // 서버 /register가 올바른 등급으로 접수함) 저장된 계정으로 grade-info를 다시 조회해 그 계정에 실제로
+  // 존재하는 등급 중에서만 고르게 한다. select로 고른 등급의 4개 필드를 한 번에 갱신.
+  window.editScheduleGrade = async function(key) {
+    const e = _ssEntries[key];
+    const cell = document.getElementById(`ss-grade-${key}`);
+    if (!e || !cell) return;
+    cell.innerHTML = '<span style="font-size:11px;color:var(--muted);">불러오는 중...</span>';
+    let gi;
+    try {
+      gi = await callBizfitProxy('/grade-info', {
+        domain: e.payload?.domain || BIZFIT_DOMAIN, loginId: e.payload?.loginId, pwd: e.payload?.pwd,
+        tab: BIZFIT_TAB, rawData: [],
+      });
+    } catch(err) { gi = { success:false }; }
+    if (!gi.success || !gi.gradeGroups || !gi.gradeGroups.length) {
+      cell.innerHTML = '<span style="color:var(--danger);font-size:11px;">등급 조회 실패</span>';
+      return;
+    }
+    const curName = e.payload?.gradeName || '';
+    cell.innerHTML = `<select style="font-size:12px;font-family:inherit;padding:3px 6px;border:1px solid var(--border);border-radius:5px;max-width:100%;">
+      ${gi.gradeGroups.map(g => `<option value="${escProd(g.gradeName)}" ${g.gradeName===curName?'selected':''}>${escProd(g.gradeName)}</option>`).join('')}
+    </select>`;
+    cell.querySelector('select').onchange = async (ev) => {
+      const g = gi.gradeGroups.find(x => x.gradeName === ev.target.value);
+      if (!g) return;
+      ev.target.disabled = true;
+      try {
+        await HA.updateDoc(`kimpro/scheduled_dispatch/${key}`, {
+          'payload/gradeName':  g.gradeName,
+          'payload/classType':  g.classType,
+          'payload/gradeType':  g.gradeType,
+          'payload/tab':        g.actualTab || BIZFIT_TAB,
+          'payload/rowData/0/상품등급명': g.gradeName,
+        });
+        e.payload.gradeName = g.gradeName; e.payload.classType = g.classType;
+        e.payload.gradeType = g.gradeType; e.payload.tab = g.actualTab || BIZFIT_TAB;
+        const row = (e.payload.rowData||[])[0]; if (row) row.상품등급명 = g.gradeName;
+        cell.innerHTML = `<span>${escProd(g.gradeName)}</span> <button onclick="editScheduleGrade('${key}')" title="등급 변경" style="border:none;background:none;cursor:pointer;font-size:11px;margin-left:2px;padding:0;">✏️</button>`;
+      } catch(err) {
+        alert('등급 변경 실패: ' + (err.message||err));
+        cell.innerHTML = `<span>${escProd(curName||'-')}</span> <button onclick="editScheduleGrade('${key}')" title="등급 변경" style="border:none;background:none;cursor:pointer;font-size:11px;margin-left:2px;padding:0;">✏️</button>`;
+      }
+    };
+  };
+
   // legKey: 게이트 결과 기록 필드('normalKeys'|'charlieKeys'|'deltaKeys'|'navyKeys') — 일반/찰리/블로그(델타+네이비) 탭이 이 로직을 공유
   // adrole: 지정 시 grade-info/register를 해당 adrole로만 조회 — 계정에 여러 adrole이 있어도(등급명 겹칠 수 있음) 원하는 메뉴로만 정확히 접수
   const ALL_SUBMIT_PREFIXES = ['submit', 'csub', 'bsub'];
@@ -6836,6 +6972,23 @@ window.closeUexModal = function() {
     <div id="ys-list"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px;">
       <button onclick="closeYupflSettleModal()" style="padding:9px 20px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-family:inherit;">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 분할접수 현황 모달 ───────────────────────────────────────── -->
+<div id="split-schedule-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9300;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+  <div style="background:#fff;border-radius:14px;width:1100px;max-width:100%;padding:24px 28px;box-shadow:0 20px 60px rgba(0,0,0,.25);margin:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="font-size:15px;font-weight:700;">⏰ 분할접수 현황</div>
+        <span id="ss-count" style="font-size:12px;color:var(--text2);"></span>
+      </div>
+      <button onclick="closeSplitScheduleModal()" style="border:none;background:#f1f5f9;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;line-height:1;">✕</button>
+    </div>
+    <div id="ss-list"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+      <button onclick="closeSplitScheduleModal()" style="padding:9px 20px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-family:inherit;">닫기</button>
     </div>
   </div>
 </div>
