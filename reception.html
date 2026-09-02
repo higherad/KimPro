@@ -6692,8 +6692,17 @@ window.closeUexModal = function() {
   function updateScheduleResplitSum(slotKey) {
     const st = _ssResplit[slotKey]; if (!st) return;
     const sum = Object.values(st.sel).reduce((a,b)=>a+b,0);
-    const el = document.getElementById(`ss-resplit-sum-${slotKey}`);
-    if (el) { el.textContent = sum; el.style.color = sum===100 ? 'var(--accent)' : '#b45309'; }
+    const over = sum > 100;
+    const sumEl = document.getElementById(`ss-resplit-sum-${slotKey}`);
+    if (sumEl) { sumEl.textContent = sum; sumEl.style.color = over ? 'var(--danger)' : (sum===100 ? 'var(--accent)' : '#b45309'); }
+    const warnEl = document.getElementById(`ss-resplit-warn-${slotKey}`);
+    if (warnEl) warnEl.style.display = over ? 'inline' : 'none';
+    const btnEl = document.getElementById(`ss-resplit-apply-${slotKey}`);
+    if (btnEl) {
+      btnEl.disabled = over;
+      btnEl.style.background = over ? 'var(--muted)' : '#4338ca';
+      btnEl.style.cursor = over ? 'not-allowed' : 'pointer';
+    }
   }
 
   function renderScheduleResplitPanel(g) {
@@ -6725,12 +6734,14 @@ window.closeUexModal = function() {
             }).join('')}
           </div>
         </div>`).join('')}
-        <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
           <span style="font-size:11px;color:var(--text2);">
             <span style="color:#ef4444;font-weight:700;">대기중 항목 취소 후 재생성</span>
-            · 합계 <span id="ss-resplit-sum-${slotKey}" style="font-weight:700;color:${sum===100?'var(--accent)':'#b45309'};">${sum}</span>%
+            · 합계 <span id="ss-resplit-sum-${slotKey}" style="font-weight:700;color:${sum>100?'var(--danger)':sum===100?'var(--accent)':'#b45309'};">${sum}</span>%
+            <span id="ss-resplit-warn-${slotKey}" style="color:var(--danger);font-weight:700;${sum>100?'':'display:none;'}">100%를 초과했습니다 — 비율을 줄여주세요</span>
           </span>
-          <button onclick="applyScheduleResplitClick('${slotKey}')" style="padding:6px 14px;border:none;border-radius:7px;background:#4338ca;color:#fff;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit;">적용</button>
+          <button id="ss-resplit-apply-${slotKey}" onclick="applyScheduleResplitClick('${slotKey}')" ${sum>100?'disabled':''}
+            style="padding:6px 14px;border:none;border-radius:7px;background:${sum>100?'var(--muted)':'#4338ca'};color:#fff;cursor:${sum>100?'not-allowed':'pointer'};font-size:12px;font-weight:700;font-family:inherit;">적용</button>
         </div>`;
     }
     return `<div style="padding:12px 14px;background:#eef2ff;border-top:1px solid #c7d2fe;border-bottom:1px solid #c7d2fe;">${body}</div>`;
@@ -6792,6 +6803,9 @@ window.closeUexModal = function() {
       return gg ? { ckey, gradeName: gg.gradeName, classType: gg.classType, gradeType: gg.gradeType, actualTab: gg.actualTab, adrole: gg.adrole, pct } : null;
     }).filter(Boolean);
     if (!grades.length) { alert('등급을 선택하고 비율을 입력해주세요.'); return; }
+    // 100% 초과는 패널의 적용 버튼 자체를 비활성화해뒀으니(updateScheduleResplitSum) 정상 클릭으론
+    // 여기 안 오지만, 방어적으로 조용히 막는다(팝업 없이).
+    if (grades.reduce((a,g) => a+g.pct, 0) > 100) return;
 
     // 체크박스로 골라둔 게 있으면 그것만, 없으면(기본) 잔여 전체를 대상으로
     const targetKeys = st.selectedKeys && st.selectedKeys.size ? st.selectedKeys : null;
