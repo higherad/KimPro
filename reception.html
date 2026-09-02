@@ -4864,6 +4864,28 @@ window.closeUexModal = function() {
     return res.json();
   }
 
+  // /cleanup-cancel은 NDJSON 스트림(줄마다 JSON 한 개)으로 응답한다 — {type:"log"}는 버리고
+  // 마지막 {type:"result", success, results|message} 한 줄만 취한다(tools/macro/bizfit_cleanup.html과 동일 파싱).
+  async function callBizfitCleanupCancel(body) {
+    const res = await fetch(`${BIZFIT_PROXY}/cleanup-cancel`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', final = null;
+    const consume = line => { if (!line.trim()) return; const evt = JSON.parse(line); if (evt.type !== 'log') final = evt; };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      lines.forEach(consume);
+    }
+    if (buf) consume(buf);
+    return final || { success: false, message: '서버 응답 없음' };
+  }
+
   // ── 대기 슬롯 히스토리 재접수 (같은 MID의 최근 N일 키워드 히스토리로 자동 접수) ──
   // higher/접수관리.html 동일 기능 이식 — 필드명만 kimpro fullKeywordHistory() 반환 형태({keyword, date})에 맞춰 조정(higher는 {searchKeyword, createdAt})
   window.openReacceptModal = function() {
@@ -5733,7 +5755,7 @@ window.closeUexModal = function() {
             continue;
           }
           try {
-            const res = await callBizfitProxy('/cleanup-cancel', { loginId: account.id, pwd: account.pw, mids: [...midSet] });
+            const res = await callBizfitCleanupCancel({ loginId: account.id, pwd: account.pw, mids: [...midSet] });
             if (!res.success) { errors.push(`${agencyId}: ${res.message || '실패'}`); continue; }
             res.results.forEach(r => {
               if (r.success) okMids.add(r.mid);
@@ -7118,7 +7140,7 @@ window.closeUexModal = function() {
     if (!confirm(`${row.업체명||mid} — ${gradeName} 등급 접수를 취소합니다.\n※ 비즈핏 취소는 Pcode 구분 없이 이 MID 단위로 처리돼, 같은 MID에 걸린 다른 상품이 있으면 그것도 같이 취소될 수 있습니다.\n계속할까요?`)) return;
 
     try {
-      const res = await callBizfitProxy('/cleanup-cancel', { loginId: e.payload.loginId, pwd: e.payload.pwd, mids: [mid] });
+      const res = await callBizfitCleanupCancel({ loginId: e.payload.loginId, pwd: e.payload.pwd, mids: [mid] });
       const rows = (res.results || []).filter(r => r.mid === mid);
       const ok = res.success && rows.length > 0 && rows.every(r => r.success);
       if (!ok) {
