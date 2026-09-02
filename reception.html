@@ -6422,7 +6422,7 @@ window.closeUexModal = function() {
     const modal = document.getElementById('split-schedule-modal');
     modal.style.display = 'flex';
     document.getElementById('ss-search').value = '';
-    document.getElementById('ss-status-filter').value = 'pending';
+    document.getElementById('ss-status-filter').value = 'all';
     document.getElementById('ss-list').innerHTML = '<div class="loading-wrap"><div class="spinner"></div>불러오는 중...</div>';
     document.getElementById('ss-count').textContent = '';
     _ssCollapsed = new Set();
@@ -6431,6 +6431,8 @@ window.closeUexModal = function() {
     const val = snap.exists() ? snap.val() : {};
     _ssEntries = {};
     Object.entries(val).forEach(([k, v]) => { _ssEntries[k] = { ...v, _key: k }; });
+    renderSplitScheduleList(); // _ssLastGroups 채우기
+    _ssCollapsed = new Set(_ssLastGroups.map(g => g.gid)); // 처음엔 전체 접힌 상태로
     renderSplitScheduleList();
   };
 
@@ -7083,15 +7085,16 @@ window.closeUexModal = function() {
       <button onclick="closeSplitScheduleModal()" style="border:none;background:#f1f5f9;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:13px;line-height:1;">✕</button>
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-      <input type="text" id="ss-search" placeholder="🔍 업체명 / PID / 키워드 검색" oninput="renderSplitScheduleList()"
+      <input type="text" id="ss-search" placeholder="🔍 업체명 / PID / 키워드 검색" onkeydown="if(event.key==='Enter')renderSplitScheduleList()"
         style="flex:1;min-width:200px;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+      <button onclick="renderSplitScheduleList()" style="padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;">검색</button>
       <select id="ss-status-filter" onchange="renderSplitScheduleList()"
         style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
-        <option value="pending" selected>대기중만</option>
-        <option value="all">전체</option>
-        <option value="done">완료만</option>
+        <option value="all" selected>전체</option>
+        <option value="done">완료</option>
+        <option value="pending">대기중</option>
       </select>
-      <button onclick="toggleAllScheduleGroups()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;">전체 펼치기/접기</button>
+      <button onclick="toggleAllScheduleGroups()" style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;">펼치기/접기</button>
     </div>
     <div id="ss-list"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:16px;">
