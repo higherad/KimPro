@@ -6503,13 +6503,12 @@ window.closeUexModal = function() {
     renderSplitScheduleList();
   };
 
-  // 검색/필터 결과가 접힌 그룹에 가려 안 바뀐 것처럼 보이지 않도록 실행할 때마다 전체 펼침
+  // 검색/필터는 그룹을 걸러낼 뿐 펼침 상태는 건드리지 않는다 — 펼쳐둔 그룹은 펼쳐진 채로 필터링되고,
+  // 접힌 그룹은 헤더의 건수 배지로만 결과가 보인다(펼쳐야 상세 확인).
   window.runScheduleSearch = function() {
-    _ssCollapsed = new Set();
     renderSplitScheduleList();
   };
 
-  // 검색어만 지우는 것 — runScheduleSearch와 달리 접힘 상태를 건드리지 않는다(펼쳐뒀던/접어뒀던 그대로 유지)
   window.clearScheduleSearch = function() {
     document.getElementById('ss-search').value = '';
     renderSplitScheduleList();
