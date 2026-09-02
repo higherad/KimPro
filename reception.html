@@ -6409,9 +6409,9 @@ window.closeUexModal = function() {
   }
 
   // ════════════════════════════════════════════════════════
-  // 분할접수 현황 — kimpro/scheduled_dispatch 조회 전용(읽기만). 서버(bizfit-direct-proxy)가
-  // sendAt 시각에 맞춰 순서대로 꺼내 전송한 뒤 항목을 지우므로, 이 경로에 남아있는 것 = 아직
-  // 전송 안 된(예약 대기 중인) 항목. 별도 "완료 로그"는 서버 쪽에 없어 여기선 보여줄 수 없다.
+  // 분할접수 현황 — kimpro/scheduled_dispatch 조회. 서버(bizfit-direct-proxy)가 sendAt 시각에
+  // 맞춰 전송한 뒤 항목을 지우지 않고 status만 'pending' → 'done'으로 바꿔두므로, 완료된 항목도
+  // 계속 이 경로에 남아 함께 조회된다(수정은 'pending'인 항목만 가능하게 막아둠).
   // ════════════════════════════════════════════════════════
 
   let _ssEntries = {}; // key -> entry, 등급 변경 시 저장된 계정정보(loginId/pwd) 조회용
@@ -6433,6 +6433,16 @@ window.closeUexModal = function() {
     document.getElementById('split-schedule-modal').style.display = 'none';
   };
 
+  // 저장 시점엔 항상 'pending'이고(reception.html의 saveScheduledDispatch), 서버가 전송을 마치면
+  // 이 경로 자체에서 항목을 지우는 설계라 'pending' 아닌 값이 남아있으면 완료로 간주한다.
+  function isScheduleDone(status) {
+    return !!status && status !== 'pending';
+  }
+  function scheduleStatusLabel(status) {
+    const done = isScheduleDone(status);
+    return `<span style="color:${done?'#ef4444':'#3b82f6'};font-weight:600;">${done?'완료':'대기중'}</span>`;
+  }
+
   function renderSplitScheduleList(entries) {
     const listEl = document.getElementById('ss-list');
     entries.sort((a,b) => (a.sendAt||'').localeCompare(b.sendAt||''));
@@ -6452,6 +6462,7 @@ window.closeUexModal = function() {
           <tbody>
             ${entries.map(e => {
               const row = (e.payload?.rowData || [])[0] || {};
+              const done = isScheduleDone(e.status);
               return `
               <tr>
                 <td style="text-align:center;font-size:11px;color:var(--text2);white-space:nowrap;">${fmtSettleTime(e.sendAt)}</td>
@@ -6459,17 +6470,17 @@ window.closeUexModal = function() {
                 <td style="text-align:center;font-size:11px;color:var(--text2)">${escProd(row.PID번호||'-')}</td>
                 <td id="ss-grade-${e._key}" style="text-align:center">
                   <span>${escProd(e.payload?.gradeName || row.상품등급명 || '-')}</span>
-                  <button onclick="editScheduleGrade('${e._key}')" title="등급 변경" style="border:none;background:none;cursor:pointer;font-size:11px;margin-left:2px;padding:0;">✏️</button>
+                  ${done ? '' : `<button onclick="editScheduleGrade('${e._key}')" title="등급 변경" style="border:none;background:none;cursor:pointer;font-size:11px;margin-left:2px;padding:0;">✏️</button>`}
                 </td>
                 <td style="text-align:center">
-                  <input type="text" value="${escProd(row.검색키워드||'')}" placeholder="검색키워드"
+                  <input type="text" value="${escProd(row.검색키워드||'')}" placeholder="검색키워드" ${done?'disabled':''}
                     onblur="saveScheduleKeyword('${e._key}',this)" onkeydown="if(event.key==='Enter')this.blur()"
-                    style="width:100%;font-size:12px;font-family:inherit;padding:3px 6px;border:1px solid var(--border);border-radius:5px;text-align:center;box-sizing:border-box;">
+                    style="width:100%;font-size:12px;font-family:inherit;padding:3px 6px;border:1px solid var(--border);border-radius:5px;text-align:center;box-sizing:border-box;${done?'background:#f8fafc;color:var(--text2);':''}">
                 </td>
                 <td style="text-align:center">${(row.일목표||0).toLocaleString()}</td>
                 <td style="text-align:center">${row.일수||0}</td>
                 <td style="text-align:center">${escProd(row.예약일||'-')}</td>
-                <td style="text-align:center">${escProd(e.status||'pending')}</td>
+                <td style="text-align:center">${scheduleStatusLabel(e.status)}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -6481,6 +6492,7 @@ window.closeUexModal = function() {
 
   // 검색키워드 변경 — 실제 접수 시 서버에 그대로 전송되는 값이라 payload.rowData[0]만 patch하면 충분
   window.saveScheduleKeyword = async function(key, inputEl) {
+    if (isScheduleDone(_ssEntries[key]?.status)) { inputEl.disabled = true; return; } // 완료된 항목은 수정 불가
     const val = inputEl.value.trim();
     inputEl.disabled = true;
     try {
@@ -6503,7 +6515,7 @@ window.closeUexModal = function() {
   window.editScheduleGrade = async function(key) {
     const e = _ssEntries[key];
     const cell = document.getElementById(`ss-grade-${key}`);
-    if (!e || !cell) return;
+    if (!e || !cell || isScheduleDone(e.status)) return; // 완료된 항목은 수정 불가
     cell.innerHTML = '<span style="font-size:11px;color:var(--muted);">불러오는 중...</span>';
     let gi;
     try {
