@@ -1,6 +1,5 @@
 /**
  * STORE.JS — Firebase Realtime Database (kimpro 저장소)
- * 통합 파일 - ha-store.js 대체용
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";

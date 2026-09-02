@@ -2914,7 +2914,7 @@ window.closeUexModal = function() {
     overlay.className = 'modal-overlay';
 
     const escV = v => (v??'').toString().replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    // onclick="fn('${v}')"용 — escV는 큰따옴표만 방어해 mid에 홑따옴표 있으면 문자열 탈출·임의 코드 실행 가능했음(XSS). JS 문자열 이스케이프 후 HTML 속성 이스케이프 적용
+    // onclick="fn('${v}')"용 — escV는 큰따옴표만 방어해 mid에 홑따옴표가 있으면 문자열 탈출·임의 코드 실행이 가능하므로(XSS), JS 문자열 이스케이프 후 HTML 속성 이스케이프를 적용한다.
     const escVAttr = v => (v??'').toString().replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n')
       .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const yupflProd  = prods.find(p => p.id === 'yupfl');
@@ -3506,7 +3506,7 @@ window.closeUexModal = function() {
   let _apColor = '#06b6d4';
 
   function getProdSettingsPath() {
-    // 계정별이 아닌 전 계정 공용 설정 (예전엔 kimpro/prodSettings/{계정id}로 계정마다 따로 저장됨)
+    // 계정별이 아닌 전 계정 공용 설정
     return 'kimpro/prodSettings';
   }
   async function loadProdSettings() {
@@ -3534,7 +3534,7 @@ window.closeUexModal = function() {
       const fixedSorted = prods.filter(p => fixedRank.has(p.id)).sort((a, b) => fixedRank.get(a.id) - fixedRank.get(b.id));
       let fi = 0;
       prods = prods.map(p => fixedRank.has(p.id) ? fixedSorted[fi++] : p);
-      // 자동배분 대상(autoBalance!==false)인데 활성 상태끼리 ratio/kwPct 합이 10이 아니면 재배분 — 과거 버그(찰리 autoBalance:false)로 비율 0인 채 남은 계정을 수동 토글 없이 자동 복구
+      // 자동배분 대상(autoBalance!==false)인데 활성 상태끼리 ratio/kwPct 합이 10이 아니면 재배분 — 특정 계정(찰리)이 autoBalance:false로 비율 0인 채 남아도 수동 토글 없이 자동 복구되게 함
       const balanced = prods.filter(p => p.active && p.autoBalance !== false);
       if (balanced.length) {
         const ratioSum = Math.round(balanced.reduce((s,p)=>s+(p.ratio||0),0)*10)/10;
@@ -3920,10 +3920,9 @@ window.closeUexModal = function() {
     _prodModalId = null;
   };
   // 엑셀 버전 새로고침 — 비즈핏 사이트에 등급명으로 직접 조회해 pm-ver를 최신값으로 채운다.
-  // 조회 계정은 오렌지(orangeplanet1@naver.com)로 고정(사용자 지정, 2026-08-27 — 이 계정이 등급이
-  // 가장 최신화됨). kimpro/charge_accounts는 로그인 코드(kimpro/member)별로 따로 저장돼 로그인한
-  // 코드에 따라 계정이 안 보일 수 있어(실제로 "member"로 로그인 시 재현됨) — 로그인 코드와 무관하게
-  // kimpro/version_check_account 전용 노드에 이 계정만 별도 저장해 그걸 씀. 폴백 없음.
+  // 조회 계정은 오렌지(orangeplanet1@naver.com)로 고정 — 등급이 가장 최신화된 계정. kimpro/charge_accounts는
+  // 로그인 코드(kimpro/member)별로 따로 저장돼 로그인 코드에 따라 계정이 안 보일 수 있으므로, 로그인 코드와
+  // 무관하게 kimpro/version_check_account 전용 노드에 이 계정만 별도 저장해 그걸 쓴다. 폴백 없음.
   window.refreshProdVersion = async function() {
     const p = prods.find(x => x.id === _prodModalId); if (!p) return;
     const btn = document.getElementById('pm-ver-refresh');
@@ -4843,8 +4842,7 @@ window.closeUexModal = function() {
   // 찰리는 일반 상품과 달리 "NP 위치저장"(adrole=100) 메뉴로 접수해야 한다 — 계정에 NP트래픽(211 등)이
   // 함께 설정돼 있으면 등급명이 겹쳐서(가격은 다름) 자동탐색으론 구분이 안 되므로 adrole을 강제 지정.
   const CHARLIE_ADROLE = '100';
-  // 델타(블로그저장)도 찰리와 같은 NP위치저장(adrole=100) 계열 등급명 — 실측(비즈핏 사이트 소액 실접수,
-  // 2026-08-19)으로 정상 등록 확인 완료.
+  // 델타(블로그저장)도 찰리와 같은 NP위치저장(adrole=100) 계열 등급명.
   const DELTA_ADROLE = '100';
 
   async function fetchBizfitAccount(agencyId) {
@@ -5714,10 +5712,8 @@ window.closeUexModal = function() {
       const fixedAlreadyDone   = alreadyDoneOf(rowsBySlotOf(data.yupflRows), '_fixedSubmitted');
 
       // 슬롯별로 실제 쓰는 레그 집합 — rows에 그 슬롯(_slotKey)이 등장하는지로 판단(higher와 동일 패턴).
-      // ⚠️ 예전엔 "primary 레그(normalKeys 우선) 완료된 슬롯만 훑고 나머지 레그도 됐는지 확인"하는 방식이었는데,
-      // 등급 자동매칭으로 한 슬롯의 배분이 통째로 charlieKeys 등 비-primary 레그 하나로만 몰릴 수 있게 되면서
-      // 그 슬롯이 primary(normalKeys)엔 아예 행이 없어 영원히 후보에 안 잡히는 버그가 있었음(2026-08-26 수정) —
-      // 슬롯마다 "자기가 실제로 쓰는 레그만" 요구하는 방식으로 교체.
+      // 등급 자동매칭으로 한 슬롯의 배분이 통째로 charlieKeys 등 비-primary 레그 하나로만 몰릴 수 있어,
+      // primary(normalKeys) 완료 여부만으로 판정하면 안 되고 슬롯마다 실제로 쓰는 레그만 요구해야 한다.
       const requiredLegsByKey = new Map(); // slotKey -> Set('normalKeys'|'fixedKeys'|'charlieKeys'|'deltaKeys'|'navyKeys')
       const addRequired = (rows, leg) => rows.forEach(r => {
         if (!r._slotKey) return;
@@ -5731,8 +5727,7 @@ window.closeUexModal = function() {
       addRequired(data.yupflRows, 'fixedKeys');
       const slotMapAll = new Map(allSlots.map(s => [s._key, s]));
       // 재접수(isRequeue) 슬롯은 유입플을 실제로 접수하지 않고 배분값 확인용으로만 켜두는 경우가 있어
-      // fixedKeys만 예외로 면제(다른 레그는 그대로 요구) — 예전엔 이 예외가 "레그 하나만 끝나도 전부 스킵"으로
-      // 잘못 구현돼 있었음(재접수 승인 게이트 우회 버그, 이번에 같이 수정됨).
+      // fixedKeys만 예외로 면제한다(다른 레그는 그대로 요구; 레그 하나만 끝나도 전부 스킵되지 않도록 개별 판정).
       function readyKeysOf(doneSets) {
         return [...requiredLegsByKey.entries()]
           .filter(([k, req]) => {
@@ -5878,8 +5873,8 @@ window.closeUexModal = function() {
       let ok = 0, fail = 0;
       for (const key of slotKeys) {
         // target(모달이 연 시점의 스냅샷)에서 직접 찾아 그 객체를 그대로 고쳐야 computeSubmitData(target) 재계산에
-        // 반영됨 — allSlots는 실시간 리스너가 child_changed 때 같은 인덱스를 새 객체로 통째로 교체해버려서
-        // (reception.html:2781) allSlots.find로 얻은 객체를 고쳐도 target 쪽엔 반영 안 되는 경우가 있었음.
+        // 반영된다 — allSlots는 실시간 리스너가 child_changed 때 같은 인덱스를 새 객체로 통째로 교체해버려서
+        // (reception.html:2781) allSlots.find로 얻은 객체를 고쳐도 target 쪽엔 반영되지 않는다.
         const s = target.find(x => x._key === key);
         if (!s || !s.url) { fail++; continue; }
         const splitProd = prods.find(p => p.id === 'delta' && p.active) || prods.find(p => p.id === 'navy' && p.active) || prods.find(p => p.id === 'delta');
@@ -6417,9 +6412,9 @@ window.closeUexModal = function() {
   const ALL_SUBMIT_PREFIXES = ['submit', 'csub', 'bsub'];
   const SUBMIT_TAB_PREFIX = { normalKeys: 'submit', charlieKeys: 'csub' };
 
-  // NP위치저장(adrole=100) 계열(찰리/델타)은 ajax.excel_version.php 동적 조회가 빈 값을 반환해 기본
-  // 폴백 버전과 어긋나 "버전체크 실패"로 거부됨(실측) — 상품 설정에 저장된 ver를 그대로 넘겨 우회한다.
-  // 네이비도 2026-08-25 동일 증상 확인되어 포함(등록 시 이 override가 없으면 상품 설정의 ver를 바꿔도 전혀 전송되지 않음).
+  // NP위치저장(adrole=100) 계열(찰리/델타/네이비)은 ajax.excel_version.php 동적 조회가 빈 값을 반환해 기본
+  // 폴백 버전과 어긋나 "버전체크 실패"로 거부되므로, 상품 설정에 저장된 ver를 그대로 넘겨 우회한다
+  // (이 override가 없으면 상품 설정의 ver를 바꿔도 전혀 전송되지 않음).
   // ap()(활성 상품만)이 아니라 prods 전체에서 찾는다 — 등급 자동매칭은 비활성 상품도 매칭해 접수시키므로
   // ap()로 찾으면 찰리/델타/네이비가 비활성일 때 undefined가 되어 버전 override가 안 실려 "버전체크 실패"로 이어짐.
   // submitPlanRows(즉시)/submitPlanRowsScheduled(예약) 공용.
