@@ -6692,6 +6692,35 @@ window.closeUexModal = function() {
     return `<div style="padding:12px 14px;background:#eef2ff;border-top:1px solid #c7d2fe;border-bottom:1px solid #c7d2fe;">${body}</div>`;
   }
 
+  // 최소 접수 수량 — 비즈핏 최소 수량 기준, splitRowBySchedule과 동일
+  const SCHEDULE_MIN_PORTION = 10;
+
+  // 같은 sendAt(=같은 시각에 나갈 조각)끼리 묶어 그 시점의 일목표 합을 비율대로 나눈다. 조각 하나가
+  // 최소수량 미만이 되면(예: 남은 양이 적은데 너무 잘게 쪼갬) 그 조각만 조용히 버리지 않고 violations로
+  // 보고해 실행 자체를 막는다 — 안 그러면 그 등급분만 수량이 통째로 증발해도 아무 표시가 안 남는다.
+  function computeResplitBuckets(slotKey, grades) {
+    const items = Object.values(_ssEntries).filter(e => e.slotKey === slotKey && !isScheduleDone(e.status));
+    const byTime = new Map();
+    items.forEach(e => {
+      const t = e.sendAt || '';
+      if (!byTime.has(t)) byTime.set(t, []);
+      byTime.get(t).push(e);
+    });
+
+    const buckets = [];
+    const violations = [];
+    byTime.forEach((bucket, sendAt) => {
+      const totalTarget = bucket.reduce((s,e) => s + ((e.payload?.rowData||[])[0]?.일목표 || 0), 0);
+      const amounts = lrm(grades.map(g => ({ id: g.gradeName, ratio: g.pct })), totalTarget);
+      grades.forEach(g => {
+        const amt = amounts[g.gradeName] || 0;
+        if (amt > 0 && amt < SCHEDULE_MIN_PORTION) violations.push({ sendAt, gradeName: g.gradeName, amt });
+      });
+      buckets.push({ sendAt, bucket, amounts });
+    });
+    return { buckets, violations };
+  }
+
   window.applyScheduleResplitClick = async function(slotKey) {
     const st = _ssResplit[slotKey]; if (!st) return;
     const grades = Object.entries(st.sel).filter(([,pct]) => pct > 0).map(([name,pct]) => {
@@ -6699,6 +6728,13 @@ window.closeUexModal = function() {
       return gg ? { gradeName: gg.gradeName, classType: gg.classType, gradeType: gg.gradeType, actualTab: gg.actualTab, pct } : null;
     }).filter(Boolean);
     if (!grades.length) { alert('등급을 선택하고 비율을 입력해주세요.'); return; }
+
+    const { violations } = computeResplitBuckets(slotKey, grades);
+    if (violations.length) {
+      const detail = [...new Set(violations.map(v => `${v.gradeName}(${v.amt})`))].join(', ');
+      alert(`이 비율로 나누면 최소 접수 수량(${SCHEDULE_MIN_PORTION}) 미만인 조각이 생겨 접수할 수 없습니다: ${detail}\n등급 수를 줄이거나 비율을 조정해주세요.`);
+      return;
+    }
     if (!confirm(`남은 예약 항목을 취소하고 ${grades.map(g=>`${g.gradeName} ${g.pct}%`).join(' / ')} 비율로 다시 나눕니다. 계속할까요?`)) return;
 
     try {
@@ -6711,33 +6747,23 @@ window.closeUexModal = function() {
     }
   };
 
-  // 같은 sendAt(=같은 시각에 나갈 조각)끼리 묶어 그 시점의 일목표 합을 다시 비율대로 나눈다 —
-  // 날짜/시간대 구조(scheduleConfig)는 건드리지 않고 등급 구성만 바꾸는 것.
   async function applyScheduleResplit(slotKey, grades) {
-    const items = Object.values(_ssEntries).filter(e => e.slotKey === slotKey && !isScheduleDone(e.status));
-    if (!items.length) return { created: 0, removed: 0 };
-
-    const byTime = new Map();
-    items.forEach(e => {
-      const t = e.sendAt || '';
-      if (!byTime.has(t)) byTime.set(t, []);
-      byTime.get(t).push(e);
-    });
+    const { buckets, violations } = computeResplitBuckets(slotKey, grades);
+    if (!buckets.length) return { created: 0, removed: 0 };
+    if (violations.length) throw new Error('최소 접수 수량 미만인 조각이 있어 중단했습니다.'); // applyScheduleResplitClick에서 이미 막지만 방어적으로 재확인
 
     const patch = {};
     let removed = 0, created = 0;
 
-    byTime.forEach((bucket, sendAt) => {
+    buckets.forEach(({ sendAt, bucket, amounts }) => {
       const sample = bucket[0];
       const sampleRow = (sample.payload?.rowData || [])[0] || {};
-      const totalTarget = bucket.reduce((s,e) => s + ((e.payload?.rowData||[])[0]?.일목표 || 0), 0);
-      const amounts = lrm(grades.map(g => ({ id: g.gradeName, ratio: g.pct })), totalTarget);
 
       bucket.forEach(e => { patch[`scheduled_dispatch/${e._key}`] = null; removed++; });
 
       grades.forEach(g => {
         const amt = amounts[g.gradeName] || 0;
-        if (amt < 10) return; // 비즈핏 최소 접수 수량 미만은 버림 — splitRowBySchedule과 동일 기준
+        if (amt <= 0) return;
         const key = genId();
         patch[`scheduled_dispatch/${key}`] = {
           slotKey, batchGroupId: sample.batchGroupId, sendAt, endpoint: sample.endpoint,
