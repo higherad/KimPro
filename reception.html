@@ -5404,7 +5404,7 @@ window.closeUexModal = function() {
     const keySet = new Set(checkedKeys);
     const base   = checkedKeys.length ? allSlots.filter(s => keySet.has(s._key)) : filteredAll;
     const target = base.filter(s => s.status === 'accepted');
-    if (!target.length) { alert('접수 상태인 캠페인이 없습니다.\n(승인 완료 항목은 재접수 불필요)'); return; }
+    if (!target.length) { alert('접수 상태인 캠페인이 없습니다.'); return; }
     const hasNormal  = ap().some(p => !FIXED_PROD_IDS.has(p.id));
     const hasFixed   = ap().some(p => p.fixedAlloc && !p.deductOnly);
     const hasCharlie = ap().some(p => p.id === 'charlie');
