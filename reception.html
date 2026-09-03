@@ -6802,7 +6802,7 @@ window.closeUexModal = function() {
               <span style="color:var(--muted);flex-shrink:0;">/</span>
               <span style="font-size:11px;color:var(--text2);font-family:monospace;flex-shrink:0;">${escProd(g.pid||'-')}</span>
               ${pendCount
-                ? `<button onclick="event.stopPropagation();cancelAllSchedulePending('${g.gid}')" title="대기중 ${pendCount}건 일괄 취소" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--danger);padding:0;flex-shrink:0;">✕</button>`
+                ? `<button onclick="event.stopPropagation();cancelAllSchedulePending('${g.gid}')" title="${selCount ? `선택 ${selCount}건 취소` : `대기중 ${pendCount}건 일괄 취소`}" style="border:none;background:none;cursor:pointer;font-size:12px;color:var(--danger);padding:0;flex-shrink:0;">✕</button>`
                 : ''}
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
@@ -7138,15 +7138,23 @@ window.closeUexModal = function() {
     return { created, removed };
   }
 
-  // 대기중(pending) 항목 일괄 취소 — 아직 전송 전이라 비즈핏에 아무것도 나가지 않은 상태라 API 호출
-  // 없이 예약 항목만 지우면 됨(개별 취소는 잔여 재분류 체크박스로 충분해 따로 안 둠). scheduled_batches/total도
-  // 같이 줄여야 서버가 "그룹 전체 완료"를 정확히 판정한다(applyScheduleResplit의 removed 처리와 동일한 규칙).
-  // 취소 후엔 강제종료(onBsEntrySuccess/renderReceipts 자동만료)와 같은 방식으로 슬롯을 처리한다 — 남은 일수를
-  // 그대로 두지 않고 실제로 나간 날짜(완료된 예약일의 개수·마지막 날)만큼만 인정해 일수/종료일을 줄이고 종료 처리.
+  // 대기중(pending) 항목 취소 — 잔여 재분류와 동일한 규칙: 행 체크박스(_ssResplit[slotKey].selectedKeys)를
+  // 하나 이상 체크했으면 그 항목들만, 아무것도 안 체크했으면(기본) 대기중 전체를 대상으로 한다.
+  // 아직 전송 전이라 비즈핏에 아무것도 나가지 않은 상태라 API 호출 없이 예약 항목만 지우면 됨.
+  // scheduled_batches/total도 같이 줄여야 서버가 "그룹 전체 완료"를 정확히 판정한다(applyScheduleResplit의
+  // removed 처리와 동일한 규칙). 전체 취소 시엔 강제종료(onBsEntrySuccess/renderReceipts 자동만료)와 같은
+  // 방식으로 슬롯을 처리한다 — 남은 일수를 그대로 두지 않고 실제로 나간 날짜(완료된 예약일의 개수·마지막
+  // 날)만큼만 인정해 일수/종료일을 줄이고 종료 처리. 선택 취소는 슬롯이 계속 진행 중이라 종료 처리 안 함.
   window.cancelAllSchedulePending = async function(slotKey) {
-    const targets = Object.values(_ssEntries).filter(e => e.slotKey === slotKey && !isScheduleDone(e.status));
+    const pending = Object.values(_ssEntries).filter(e => e.slotKey === slotKey && !isScheduleDone(e.status));
+    const selectedKeys = _ssResplit[slotKey]?.selectedKeys;
+    const isPartial = !!(selectedKeys && selectedKeys.size);
+    const targets = isPartial ? pending.filter(e => selectedKeys.has(e._key)) : pending;
     if (!targets.length) return;
-    if (!confirm(`대기중 ${targets.length}건을 취소합니다. 캠페인은 실제로 나간 날짜까지만 인정되고 종료 처리됩니다. 계속할까요?`)) return;
+    const msg = isPartial
+      ? `선택한 ${targets.length}건을 취소합니다. 계속할까요?`
+      : `대기중 ${targets.length}건을 취소합니다. 계속할까요?`;
+    if (!confirm(msg)) return;
 
     try {
       const patch = {};
@@ -7157,21 +7165,24 @@ window.closeUexModal = function() {
         patch[`scheduled_batches/${slotKey}/total`] = Math.max(0, (batch.total||0) - targets.length);
       }
       await HA.updateDoc('kimpro', patch);
-      targets.forEach(e => { delete _ssEntries[e._key]; });
+      targets.forEach(e => { delete _ssEntries[e._key]; selectedKeys?.delete(e._key); });
 
-      const doneDates = [...new Set(
-        Object.values(_ssEntries)
-          .filter(e => e.slotKey === slotKey && e.status === 'done')
-          .map(e => (e.payload?.rowData||[])[0]?.예약일)
-          .filter(Boolean)
-      )].sort();
-      const slotSnap = await HA.getDoc(`kimpro/slots/${slotKey}`);
-      if (slotSnap.exists()) {
-        const slotPatch = { status: 'ended', days: doneDates.length };
-        if (doneDates.length) slotPatch.endDate = doneDates[doneDates.length-1];
-        await HA.updateSlot(slotKey, slotPatch);
-        const s = allSlots.find(x => x._key === slotKey);
-        if (s) Object.assign(s, slotPatch);
+      if (!isPartial) {
+        // 전체 취소일 때만 슬롯 자체를 종료 처리 — 선택 취소는 나머지 대기 건이 계속 진행되므로 건드리지 않음
+        const doneDates = [...new Set(
+          Object.values(_ssEntries)
+            .filter(e => e.slotKey === slotKey && e.status === 'done')
+            .map(e => (e.payload?.rowData||[])[0]?.예약일)
+            .filter(Boolean)
+        )].sort();
+        const slotSnap = await HA.getDoc(`kimpro/slots/${slotKey}`);
+        if (slotSnap.exists()) {
+          const slotPatch = { status: 'ended', days: doneDates.length };
+          if (doneDates.length) slotPatch.endDate = doneDates[doneDates.length-1];
+          await HA.updateSlot(slotKey, slotPatch);
+          const s = allSlots.find(x => x._key === slotKey);
+          if (s) Object.assign(s, slotPatch);
+        }
       }
 
       renderSplitScheduleList();
