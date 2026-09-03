@@ -134,10 +134,7 @@ async function downloadRankTable() {
         dailyTarget: s.dailyTarget || 0,
         agency: s.agencyId || '',
         createdDate: s.createdAt ? fmtDate(s.createdAt) : '',
-        // 시간대 분할 예약 대기 중(status='split')이면 원래 상태(preScheduleStatus)로 보내야
-        // 백엔드가 승인 여부(ACTIVE_LIKE_STATUSES)를 제대로 판정함 — 안 그러면 분할 대기 MID가
-        // 승인 이력이 전혀 없는 것처럼 보여 순위표에서 통째로 빠짐
-        status: (s.status === 'split' ? (s.preScheduleStatus || s.status) : s.status) || '',
+        status: s.status || '',
         isRequeue: !!s.isRequeue,
       }));
 
