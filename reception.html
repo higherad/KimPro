@@ -5981,16 +5981,22 @@ window.closeUexModal = function() {
         navyKeys:    navyAlreadyDone.size    ? navyAlreadyDone    : null,
         slotMap: slotMapAll,
         async tryApprove() {
-          const keys = readyKeysOf(this);
-          if (keys.length) {
-            // normalDoneProducts/fixedSubmitted는 접수 완료 이력이므로 승인 후에도 계속 보관(삭제하지 않음)
-            await Promise.all(keys.map(k => HA.updateSlot(k, { status: 'active' })));
-            keys.forEach(k => {
-              const s = this.slotMap.get(k);
-              if (s) s.status = 'active';
-            });
+          // 호출부가 try/catch 없이 await만 하므로, 내부 예외가 밖으로 새면 등록 성공해도
+          // 승인/화면갱신이 통째로 스킵됨(higher 2026-09-03 사례와 동일 구조) — 여기서 막는다.
+          try {
+            const keys = readyKeysOf(this);
+            if (keys.length) {
+              // normalDoneProducts/fixedSubmitted는 접수 완료 이력이므로 승인 후에도 계속 보관(삭제하지 않음)
+              await Promise.all(keys.map(k => HA.updateSlot(k, { status: 'active' })));
+              keys.forEach(k => {
+                const s = this.slotMap.get(k);
+                if (s) s.status = 'active';
+              });
+            }
+            renderReceipts(false);
+          } catch (e) {
+            console.error('승인 게이트 처리 오류(다음 완료 시 또는 팝업 재오픈 시 재시도됨):', e);
           }
-          renderReceipts(false);
         }
       } : null;
       // 재계산 시점에 이미 관련 탭이 전부 완료돼 있는 슬롯이 있으면(비정상 상태 복구) 즉시 반영
