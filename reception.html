@@ -136,6 +136,7 @@ async function downloadRankTable() {
         createdDate: s.createdAt ? fmtDate(s.createdAt) : '',
         status: s.status || '',
         isRequeue: !!s.isRequeue,
+        grade: window.gradeLabelForMid ? window.gradeLabelForMid(s.mid) : '',
       }));
 
     const res = await fetch('https://kimpro-premium-938928195180.asia-northeast3.run.app/rank-table', {
@@ -2477,6 +2478,12 @@ window.closeUexModal = function() {
     const missionHtml = missions.map(l => `<span style="display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;background:transparent;color:#334155;border:1px solid #e2e8f0">${l}</span>`).join('');
     return gradeHtml + missionHtml;
   }
+
+  // GRADE_CACHE는 module 스코프라 순위표 다운로드(비-module 스크립트)에서 못 씀 — window.allSlots와 동일하게 헬퍼로 노출
+  window.gradeLabelForMid = function(mid) {
+    const entries = parseGradeEntries(GRADE_CACHE.get(mid));
+    return [...new Set(entries.flatMap(g => (g.gradeLabel || '').split(',').map(l => l.trim()).filter(l => l)))].join(', ');
+  };
 
   async function injectGradeBadges(slots) {
     await Promise.all(slots.map(async s => {
