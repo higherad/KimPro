@@ -2480,14 +2480,14 @@ window.closeUexModal = function() {
   }
 
   // GRADE_CACHE는 module 스코프라 순위표 다운로드(비-module 스크립트)에서 못 씀 — window.allSlots와 동일하게 헬퍼로 노출
+  // 화면 캠페인타입 컬럼(_renderGradeBadgesHtml)과 동일하게 등급+미션(예: 12번)을 함께 반환
   window.gradeLabelForMid = function(mid) {
-    const entries = parseGradeEntries(GRADE_CACHE.get(mid));
-    return [...new Set(entries.flatMap(g => (g.gradeLabel || '').split(',').map(l => l.trim()).filter(l => l)))].join(', ');
+    return [...new Set(_allFilterLabels(GRADE_CACHE.get(mid)))].join(', ');
   };
 
   async function injectGradeBadges(slots) {
     await Promise.all(slots.map(async s => {
-      if (!['pending','accepted','active','paused','force_stopped','requeue'].includes(s.status) || !s.mid) return;
+      if (!['pending','accepted','active','paused','force_stopped','requeue','split'].includes(s.status) || !s.mid) return;
       const el = document.getElementById(`grade-${s._key}`);
       if (!el) return;
       const data = await fetchGrade(s.mid);
@@ -2542,7 +2542,7 @@ window.closeUexModal = function() {
       else if (status === 'active') { if (s.status !== 'active' || s.isRequeue) return false; }
       else if (status && s.status !== status) return false;
       if (gradeFilter) {
-        if (!['pending','accepted','active','paused','force_stopped','requeue'].includes(s.status)) return false;
+        if (!['pending','accepted','active','paused','force_stopped','requeue','split'].includes(s.status)) return false;
         const cached = GRADE_CACHE.get(s.mid);
         if (!cached) return false;
         if (!_allFilterLabels(cached).includes(gradeFilter)) return false;
@@ -2705,7 +2705,7 @@ window.closeUexModal = function() {
           <td style="color:var(--text2)">${numMap.get(s._key)}</td>
           <td style="color:var(--text2)">${s.createdAt ? uexFmt(new Date(s.createdAt)) : '-'}</td>
           <td style="font-weight:600">${escProd(s.agencyId||'-')}</td>
-          <td>${['pending','accepted','active','paused','force_stopped','requeue'].includes(s.status)
+          <td>${['pending','accepted','active','paused','force_stopped','requeue','split'].includes(s.status)
             ? `<span id="grade-${s._key}" style="color:#94a3b8;font-size:11px">···</span>`
             : `<span style="color:#cbd5e1">-</span>`
           }</td>
@@ -2751,7 +2751,7 @@ window.closeUexModal = function() {
     injectGradeBadges(page);
 
     // 등급 백그라운드 로드 — 미캐시 MID만 로드, 완료 시 필터 갱신
-    const uniqueMids    = [...new Set(allSlots.filter(s => ['pending','accepted','active','paused','force_stopped','requeue'].includes(s.status) && s.mid).map(s => s.mid))];
+    const uniqueMids    = [...new Set(allSlots.filter(s => ['pending','accepted','active','paused','force_stopped','requeue','split'].includes(s.status) && s.mid).map(s => s.mid))];
     const uncachedMids  = uniqueMids.filter(mid => !GRADE_CACHE.has(mid));
     if (uncachedMids.length) {
       fetchGradesBatch(uncachedMids).then(() => {
