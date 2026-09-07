@@ -7274,14 +7274,13 @@ window.closeUexModal = function() {
     const curCkey = scheduleGradeCkey(e.adrole, curName);
     // rowData(일목표/일수/블로그URL 등)는 그대로 두고 등급 메타만 바꾸므로, 요구값 구조(daysMultiplied/blogUrlProduct)가 다른 등급은 고를 수 없게 막는다
     const curStruct = gradeStructKey(curName);
-    const filteredOut = groups.length - groups.filter(g => g.structKey === curStruct).length;
     const compatGroups = groups.filter(g => g.structKey === curStruct);
     const categories = [...new Set(compatGroups.map(g => g.category))];
     cell.innerHTML = `<select style="font-size:12px;font-family:inherit;padding:3px 6px;border:1px solid var(--border);border-radius:5px;max-width:100%;">
       ${categories.map(cat => `<optgroup label="${escProd(cat)}">
         ${compatGroups.filter(g => g.category === cat).map(g => `<option value="${escProd(g.ckey)}" ${g.ckey===curCkey?'selected':''}>${escProd(g.gradeName)}</option>`).join('')}
       </optgroup>`).join('')}
-    </select>${filteredOut ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;">⚠ 요구값이 다른 등급 ${filteredOut}개는 목록에서 제외됨</div>` : ''}`;
+    </select>`;
     cell.querySelector('select').onchange = async (ev) => {
       const g = compatGroups.find(x => x.ckey === ev.target.value);
       if (!g) return;
