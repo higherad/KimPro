@@ -6359,9 +6359,11 @@ window.closeUexModal = function() {
     const totalTarget = rows.reduce((a,r) => a+(r.target||0)*(r.days||0), 0);
     const totalAmount = rows.reduce((a,r) => a+(r.amount||0), 0);
     const unitPrice   = rows[0]?.unitPrice || 0;
+    const kwEmptyCount = rows.filter(r => !r._fixedSubmitted && !r.workKw).length;
+    const issueBadge = kwEmptyCount ? ` <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">⚠️ 오류 ${kwEmptyCount}건</span>` : '';
     const hd = document.createElement('div');
     hd.className = 'agency-hd';
-    hd.innerHTML = `<div><div class="aname">${escProd(agencyName||'')} <span style="font-weight:400;font-size:13px;color:var(--text2)">(유입플)</span></div><div class="ameta">총 ${rows.length}건 · 목표 합계 ${totalTarget.toLocaleString()} · 단가 ${unitPrice.toLocaleString()}원${!unitPrice ? ' <span style="color:var(--danger)">(계정 설정 미등록)</span>' : ''} · 금액 합계 ${totalAmount.toLocaleString()}원</div></div>`;
+    hd.innerHTML = `<div><div class="aname">${escProd(agencyName||'')} <span style="font-weight:400;font-size:13px;color:var(--text2)">(유입플)</span>${issueBadge}</div><div class="ameta">총 ${rows.length}건 · 목표 합계 ${totalTarget.toLocaleString()} · 단가 ${unitPrice.toLocaleString()}원${!unitPrice ? ' <span style="color:var(--danger)">(계정 설정 미등록)</span>' : ''} · 금액 합계 ${totalAmount.toLocaleString()}원</div></div>`;
     block.appendChild(hd);
 
     const ell = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0';
@@ -6384,6 +6386,7 @@ window.closeUexModal = function() {
     const tbody = document.createElement('tbody');
     rows.forEach(r => {
       const kwCount = (r.workKw||'').split(',').map(k=>k.trim()).filter(k=>k).length;
+      const kwEmpty = kwCount === 0 && !r._fixedSubmitted;
       const tr = document.createElement('tr');
       const statusTd = document.createElement('td');
       statusTd.style.cssText = 'text-align:center;white-space:nowrap';
@@ -6402,7 +6405,7 @@ window.closeUexModal = function() {
         <td style="text-align:center;white-space:nowrap"><span style="font-size:10px;font-weight:800;padding:1px 7px;border-radius:6px;background:${r._prodColor||'#94a3b8'}1a;color:${r._prodColor||'#64748b'};border:1px solid ${r._prodColor||'#94a3b8'}55;">${escProd(r._prodLabel||'')}</span></td>
         <td style="${ell}" title="${escProd(r.storeName)}">${escProd(r.storeName||'-')}</td>
         <td style="${ell}" title="${escProd(r.rankKw)}">${escProd(r.rankKw||'-')}</td>
-        <td style="text-align:center" title="${escProd(r.workKw||'')}"><span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;white-space:nowrap">${kwCount}개</span></td>
+        <td style="text-align:center" title="${escProd(r.workKw||'')}"><span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;background:${kwEmpty?'#fee2e2':'#eff6ff'};color:${kwEmpty?'#dc2626':'#1d4ed8'};border:1px solid ${kwEmpty?'#fca5a5':'#bfdbfe'};white-space:nowrap">${kwCount}개${kwEmpty?' ⚠️':''}</span></td>
         <td style="${ell};font-size:11px;color:var(--text2)" title="${escProd(r.placeId||'')}">${escProd(r.placeId||'-')}</td>
         <td style="text-align:right;white-space:nowrap">${(r.target||0).toLocaleString()}</td>
         <td style="text-align:center;white-space:nowrap">${r.days||0}</td>
