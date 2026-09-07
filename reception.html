@@ -6833,6 +6833,13 @@ window.closeUexModal = function() {
   // 등급명이 트래픽/저장 계열끼리 겹칠 수 있어(찰리/델타가 저장 계열) gradeName만으론 구분 안 돼 계열까지 합친 키로 식별
   function scheduleGradeCkey(adrole, gradeName) { return (adrole ? 'storage' : 'traffic') + '::' + gradeName; }
 
+  // 등급별 요구값(rowData) 구조 시그니처 — daysMultiplied(일수 칸=총목표) · blogUrlProduct(블로그URL 필요) 중 하나라도 다르면
+  // 저장돼 있는 rowData(일목표/일수/블로그URL 등)를 그대로 못 쓰므로 등급만 바꿔치기하면 접수가 깨진다. prods에 없는 이름(일반 등급 티어)은 둘 다 false로 간주.
+  function gradeStructKey(gradeName) {
+    const p = prods.find(pr => pr.name === gradeName);
+    return (p?.daysMultiplied ? 'D' : '') + (p?.blogUrlProduct ? 'B' : '');
+  }
+
   // 계정의 트래픽/저장 두 계열 다 조회해 합쳐 반환 — 하나만 조회하면 반대 계열 등급이 선택지에 안 뜸
   async function fetchScheduleGradeGroups(sample) {
     const base = { domain: sample.payload?.domain || BIZFIT_DOMAIN, loginId: sample.payload?.loginId, pwd: sample.payload?.pwd, tab: BIZFIT_TAB, rawData: [] };
@@ -6842,7 +6849,7 @@ window.closeUexModal = function() {
     ]);
     const traffic = (giTraffic.success && giTraffic.gradeGroups) ? giTraffic.gradeGroups.map(g => ({ ...g, adrole: null,  category: '트래픽' })) : [];
     const storage = (giStorage.success && giStorage.gradeGroups) ? giStorage.gradeGroups.map(g => ({ ...g, adrole: '100', category: '저장'   })) : [];
-    return [...traffic, ...storage].map(g => ({ ...g, ckey: scheduleGradeCkey(g.adrole, g.gradeName) }));
+    return [...traffic, ...storage].map(g => ({ ...g, ckey: scheduleGradeCkey(g.adrole, g.gradeName), structKey: gradeStructKey(g.gradeName) }));
   }
 
   // 그룹당 하나뿐인 재분류 상태 — 패널 열기 전 체크박스부터 누를 수도 있어 onScheduleRowCheck에서도 필요시 생성
@@ -6866,7 +6873,10 @@ window.closeUexModal = function() {
       const items = Object.values(_ssEntries).filter(e => e.slotKey === slotKey && !isScheduleDone(e.status));
       const targetItems = st.selectedKeys.size ? items.filter(e => st.selectedKeys.has(e._key)) : items;
       const sample = targetItems[0] || items[0];
-      st.gradeGroups = sample ? await fetchScheduleGradeGroups(sample) : [];
+      const allGroups = sample ? await fetchScheduleGradeGroups(sample) : [];
+      // rowData 구조가 이미 저장돼 있어 되돌릴 수 없으므로, 지금 대상들이 쓰는 등급과 요구값 구조(daysMultiplied/blogUrlProduct)가 같은 등급으로만 재분류를 제한한다
+      const curStructs = new Set((targetItems.length ? targetItems : items).map(e => gradeStructKey(e.payload?.gradeName || '')));
+      st.gradeGroups = allGroups.filter(g => curStructs.has(g.structKey));
       st.loading = false;
       // 시작점 제공 — 대상이 지금 쓰는 등급들을 기본 체크하고 등급 수만큼 균등 비율을 미리 채움(고쳐도 됨)
       const curKeys = [...new Set(targetItems.map(e => scheduleGradeCkey(e.adrole, e.payload?.gradeName)).filter(k => k && !k.endsWith('::')))];
@@ -7262,14 +7272,18 @@ window.closeUexModal = function() {
     }
     const curName = e.payload?.gradeName || '';
     const curCkey = scheduleGradeCkey(e.adrole, curName);
-    const categories = [...new Set(groups.map(g => g.category))];
+    // rowData(일목표/일수/블로그URL 등)는 그대로 두고 등급 메타만 바꾸므로, 요구값 구조(daysMultiplied/blogUrlProduct)가 다른 등급은 고를 수 없게 막는다
+    const curStruct = gradeStructKey(curName);
+    const filteredOut = groups.length - groups.filter(g => g.structKey === curStruct).length;
+    const compatGroups = groups.filter(g => g.structKey === curStruct);
+    const categories = [...new Set(compatGroups.map(g => g.category))];
     cell.innerHTML = `<select style="font-size:12px;font-family:inherit;padding:3px 6px;border:1px solid var(--border);border-radius:5px;max-width:100%;">
       ${categories.map(cat => `<optgroup label="${escProd(cat)}">
-        ${groups.filter(g => g.category === cat).map(g => `<option value="${escProd(g.ckey)}" ${g.ckey===curCkey?'selected':''}>${escProd(g.gradeName)}</option>`).join('')}
+        ${compatGroups.filter(g => g.category === cat).map(g => `<option value="${escProd(g.ckey)}" ${g.ckey===curCkey?'selected':''}>${escProd(g.gradeName)}</option>`).join('')}
       </optgroup>`).join('')}
-    </select>`;
+    </select>${filteredOut ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;">⚠ 요구값이 다른 등급 ${filteredOut}개는 목록에서 제외됨</div>` : ''}`;
     cell.querySelector('select').onchange = async (ev) => {
-      const g = groups.find(x => x.ckey === ev.target.value);
+      const g = compatGroups.find(x => x.ckey === ev.target.value);
       if (!g) return;
       ev.target.disabled = true;
       try {
