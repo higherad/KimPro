@@ -5432,15 +5432,21 @@ window.closeUexModal = function() {
     }).join('');
   }
 
-  // 유입플 탭 전용 — executeYoupflSubmit 안의 검사(workKw 미입력)와 동일 조건.
-  // 재접수(isRequeue) 행은 유입플 레그가 면제(readyKeysOf와 동일 규칙)라 워크키워드 미입력이어도 실패로 안 침 — 다른 탭까지 막지 않기 위함.
+  // 유입플 탭 전용 — executeYoupflSubmit 안의 검사(workKw 미입력)와 동일 조건. 재접수 행도 워크키워드를 채워 실제로
+  // 접수하는 경우가 있어(면제는 "안 해도 되는 것"이지 "항상 스킵"이 아님) 재접수 여부와 무관하게 그대로 검사한다.
   function validateYoupflRowsForSubmit(rows) {
     let anyFail = false;
     rows.forEach(r => {
-      if (r._fixedSubmitted || r.isRequeue) return;
+      if (r._fixedSubmitted) return;
       if (!r.workKw) { r._kwFail = true; anyFail = true; }
     });
     return anyFail;
+  }
+
+  // 탭 통합 차단 전용 — 재접수(isRequeue) 행의 워크키워드 미입력은 유입플 레그 자체가 면제 대상이라 "이 탭만" 막고
+  // 다른 탭(일반/찰리/블로그)까지 잠그면 안 됨. 재접수 아닌 행이 하나라도 실패면 진짜 오류이므로 그대로 전체 차단.
+  function validateYoupflRowsBlocking(rows) {
+    return rows.some(r => !r._fixedSubmitted && !r.isRequeue && !r.workKw);
   }
 
   // 반환값 { anyFail } — 세부 경고는 행 자체(_kwFail 빨간 표시)에 이미 뜨므로, 여기선 유무만 모아 상단 공용 경고박스/탭 아이콘에 씀(전체 접수 신청 비활성화는 fillBody에서 탭 통합 판단)
@@ -5977,7 +5983,7 @@ window.closeUexModal = function() {
       });
 
       // 고정 탭 구성
-      let fixedAnyFail = false;
+      let fixedAnyFail = false, fixedBlockingFail = false;
       if (data.hasFixed) {
         const yupflAgencies = [...new Set(data.yupflRows.map(r => r.agencyId))];
         yupflAgencies.forEach(ag => {
@@ -5995,6 +6001,7 @@ window.closeUexModal = function() {
           youpflApplyBtn.style.background = '#475569'; youpflApplyBtn.style.cursor = 'default';
         } else {
           fixedAnyFail = validateYoupflRowsForSubmit(data.yupflRows);
+          fixedBlockingFail = validateYoupflRowsBlocking(data.yupflRows);
           if (fixedAnyFail) {
             youpflApplyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
           } else {
@@ -6030,11 +6037,13 @@ window.closeUexModal = function() {
       // 탭 통합 — 하나라도 경고가 있으면 전체 탭의 접수 신청을 비활성화. 세부 경고는 각 탭 행 자체(_kwFail 빨간 표시)에 이미 뜨므로,
       // 타이틀 아래 공용 박스에는 어느 탭인지만 간략히 표시. 각 탭 버튼에는 빨간 경고 아이콘 표시.
       const tabNames = { normal: '일반', fixed: '유입플', charlie: '찰리', blog: '블로그' };
+      // blockingFail: 탭 통합 차단 판단 전용 — 기본은 anyFail과 동일하되, 유입플은 재접수(isRequeue) 행만 실패면
+      // 그 탭 자체는 경고 표시(anyFail)하되 다른 탭까지는 안 막는다(위 validateYoupflRowsBlocking 참고).
       const tabResults = [
-        { key: 'normal',  ...normalResult },
-        { key: 'fixed',   anyFail: fixedAnyFail },
-        { key: 'charlie', ...charlieResult },
-        { key: 'blog',    ...blogResult },
+        { key: 'normal',  ...normalResult,  blockingFail: normalResult.anyFail },
+        { key: 'fixed',   anyFail: fixedAnyFail, blockingFail: fixedBlockingFail },
+        { key: 'charlie', ...charlieResult, blockingFail: charlieResult.anyFail },
+        { key: 'blog',    ...blogResult,    blockingFail: blogResult.anyFail },
       ];
       tabResults.forEach(t => {
         const ico = overlay.querySelector(`#stab-warn-${t.key}`);
@@ -6045,7 +6054,7 @@ window.closeUexModal = function() {
         .map(t => `<div style="color:#dc2626;font-size:11px;margin-top:2px;">⚠️ [${tabNames[t.key]}] 상품을 확인해주세요.</div>`).join('');
       warnBox.innerHTML = combinedWarnHtml;
       warnBox.style.display = combinedWarnHtml ? 'block' : 'none';
-      if (tabResults.some(t => t.anyFail)) {
+      if (tabResults.some(t => t.blockingFail)) {
         [submitApplyBtn, youpflApplyBtn, csubApplyBtn, bsubApplyBtn].forEach(btn => {
           if (btn.disabled) return; // 이미 대상없음/전체완료로 비활성인 버튼은 그대로 둠
           btn.disabled = true;
