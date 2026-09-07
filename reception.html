@@ -5183,6 +5183,7 @@ window.closeUexModal = function() {
           _normalSubmitted: !!(r.normalDoneProducts && r.normalDoneProducts.includes(prod.name)),
           _days:            r.days||0,
           _daysMultiplied:  !!prod.daysMultiplied,
+          isRequeue:  !!r.isRequeue,
           상품등급명: prod.name,
           업체명:     r.storeName||'',
           업체URL:    r.url||'',
@@ -5233,6 +5234,7 @@ window.closeUexModal = function() {
           _requiresBlogUrl: true,
           _days:            r.days||0,
           _daysMultiplied:  !!prod.daysMultiplied,
+          isRequeue:  !!r.isRequeue,
           상품등급명: prod.name,
           업체명:     r.storeName||'',
           업체URL:    r.url||'',
@@ -5397,17 +5399,23 @@ window.closeUexModal = function() {
     await openSubmitModal(target);
   };
 
-  // 일반/찰리 탭 공용 — 대행사별 블록 렌더 + 요약 문구 + 접수 신청 버튼 와이어링. emptyMsg 생략 시(일반 탭) 대상 없으면 아무것도 안 함(탭 버튼 disabled라 도달 불가)
+  // 일반/찰리/블로그 탭 공용 — 대행사별 블록 렌더 + 요약 문구 + 접수 신청 버튼 와이어링. emptyMsg 생략 시(일반 탭) 대상 없으면 아무것도 안 함(탭 버튼 disabled라 도달 불가)
   // 접수 신청 전 사전검사(executeSubmit과 동일 조건) — 오류 있으면 버튼 비활성화. higher와 쌍둥이 구현.
+  function normalRowFails(r) {
+    const kwCount = (r.검색키워드 || '').split(',').map(k => k.trim()).filter(k => k).length;
+    return kwCount === 0 || (r.일목표 || 0) < 10 || (r._requiresBlogUrl && !r.블로그URL);
+  }
   function validateNormalRowsForSubmit(rows) {
     let anyFail = false;
     rows.forEach(r => {
       if (r._normalSubmitted) return;
-      const kwCount = (r.검색키워드 || '').split(',').map(k => k.trim()).filter(k => k).length;
-      let fail = kwCount === 0 || (r.일목표 || 0) < 10 || (r._requiresBlogUrl && !r.블로그URL);
-      if (fail) { r._kwFail = true; anyFail = true; }
+      if (normalRowFails(r)) { r._kwFail = true; anyFail = true; }
     });
     return anyFail;
+  }
+  // 탭 통합 차단 전용 — 재접수(isRequeue) 행만 실패면 그 탭 자체는 경고(anyFail) 표시하되 다른 탭까지는 안 막는다(유입플과 동일 규칙).
+  function validateNormalRowsBlocking(rows) {
+    return rows.some(r => !r._normalSubmitted && !r.isRequeue && normalRowFails(r));
   }
 
   // 검색키워드 미입력/일목표 10미만/블로그URL 미입력 건수 — 대행사 헤더 배지, 탭 상단 요약에 공용으로 씀
@@ -5472,11 +5480,13 @@ window.closeUexModal = function() {
     }
     const anyFail = validateNormalRowsForSubmit(allRows);
     if (anyFail) {
-      applyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
+      // 이 탭 자체의 실패는 재접수 예외(blockingFail)와 무관하게 이 탭 버튼은 항상 잠근다 — 다른 탭 차단 여부는 fillBody의 탭 통합 판단.
+      applyBtn.disabled = true; applyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
+      applyBtn.style.background = '#9ca3af'; applyBtn.style.cursor = 'not-allowed';
     } else {
       applyBtn.onclick = onSubmit;
     }
-    return { anyFail };
+    return { anyFail, blockingFail: validateNormalRowsBlocking(allRows) };
   }
 
   // 블로그 탭 — 델타(NP위치저장)+네이비(NP트래픽) 한 탭에 표시, 접수는 각자 등급/adrole 경로로 따로 나감(표도 상품별 분리)
@@ -5509,11 +5519,13 @@ window.closeUexModal = function() {
     }
     const anyFail = validateNormalRowsForSubmit(allRows);
     if (anyFail) {
-      applyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
+      // 이 탭 자체의 실패는 재접수 예외(blockingFail)와 무관하게 이 탭 버튼은 항상 잠근다 — 다른 탭 차단 여부는 fillBody의 탭 통합 판단.
+      applyBtn.disabled = true; applyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
+      applyBtn.style.background = '#9ca3af'; applyBtn.style.cursor = 'not-allowed';
     } else {
       applyBtn.onclick = onSubmit;
     }
-    return { anyFail };
+    return { anyFail, blockingFail: validateNormalRowsBlocking(allRows) };
   }
 
   // 진짜 신규 오픈만 이 진입점을 타서 토글을 on으로 초기화 — 토글 버튼 자체의 재오픈은 renderSubmitModal() 직접 호출(값 유지)
@@ -6003,7 +6015,8 @@ window.closeUexModal = function() {
           fixedAnyFail = validateYoupflRowsForSubmit(data.yupflRows);
           fixedBlockingFail = validateYoupflRowsBlocking(data.yupflRows);
           if (fixedAnyFail) {
-            youpflApplyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
+            youpflApplyBtn.disabled = true; youpflApplyBtn.title = '오류가 있는 항목을 먼저 수정해주세요';
+            youpflApplyBtn.style.background = '#9ca3af'; youpflApplyBtn.style.cursor = 'not-allowed';
           } else {
             youpflApplyBtn.onclick = () => executeYoupflSubmit(data.yupflRows, overlay, gate, refreshScheduleToggle);
           }
@@ -6037,13 +6050,13 @@ window.closeUexModal = function() {
       // 탭 통합 — 하나라도 경고가 있으면 전체 탭의 접수 신청을 비활성화. 세부 경고는 각 탭 행 자체(_kwFail 빨간 표시)에 이미 뜨므로,
       // 타이틀 아래 공용 박스에는 어느 탭인지만 간략히 표시. 각 탭 버튼에는 빨간 경고 아이콘 표시.
       const tabNames = { normal: '일반', fixed: '유입플', charlie: '찰리', blog: '블로그' };
-      // blockingFail: 탭 통합 차단 판단 전용 — 기본은 anyFail과 동일하되, 유입플은 재접수(isRequeue) 행만 실패면
-      // 그 탭 자체는 경고 표시(anyFail)하되 다른 탭까지는 안 막는다(위 validateYoupflRowsBlocking 참고).
+      // blockingFail: 탭 통합 차단 판단 전용 — 재접수(isRequeue) 행만 실패면 그 탭 자체는 경고 표시(anyFail)하되
+      // 다른 탭까지는 안 막는다(각 validate...Blocking 참고, wireSubmitTab/wireBlogSubmitTab이 반환).
       const tabResults = [
-        { key: 'normal',  ...normalResult,  blockingFail: normalResult.anyFail },
+        { key: 'normal',  ...normalResult },
         { key: 'fixed',   anyFail: fixedAnyFail, blockingFail: fixedBlockingFail },
-        { key: 'charlie', ...charlieResult, blockingFail: charlieResult.anyFail },
-        { key: 'blog',    ...blogResult,    blockingFail: blogResult.anyFail },
+        { key: 'charlie', ...charlieResult },
+        { key: 'blog',    ...blogResult },
       ];
       tabResults.forEach(t => {
         const ico = overlay.querySelector(`#stab-warn-${t.key}`);
@@ -7366,18 +7379,14 @@ window.closeUexModal = function() {
           .filter(([, rs]) => rs.every(r => r._normalSubmitted || r._rowOk === true))
           .map(([k]) => k);
         if (!okSlots.length) return;
-        // 재접수(isRequeue)는 유입플을 배분값 확인용으로만 켜둔 경우가 있어, 일반 상품만 성공하면 게이트 우회 즉시 승인
-        const directApprove = [];
-        const gateDeferred  = [];
-        okSlots.forEach(k => {
-          const s = slotMap.get(k);
-          if (gate && !(s && s.isRequeue)) gateDeferred.push(k);
-          else directApprove.push(k);
-        });
-        gateDeferred.forEach(k => approvedKeys.add(k));
-        if (directApprove.length) {
-          await Promise.all(directApprove.map(k => HA.approveSlot(k)));
-          directApprove.forEach(k => { const s = slotMap.get(k); if (s) s.status = 'active'; });
+        // isRequeue(재접수)의 유입플 레그 면제는 readyKeysOf가 이미 처리(fixedKeys만 빼고 판정) — 여기서 별도로
+        // "재접수면 무조건 즉시 승인"하면 일반+블로그처럼 다른 레그가 2개 이상 진짜로 필요한 슬롯이 한쪽만 끝나도
+        // 조기 승인돼버림. 게이트가 있으면 항상 게이트에 맡기고, 게이트 자체가 없을 때만(활성 레그 1개) 즉시 승인.
+        if (gate) {
+          okSlots.forEach(k => approvedKeys.add(k));
+        } else {
+          await Promise.all(okSlots.map(k => HA.approveSlot(k)));
+          okSlots.forEach(k => { const s = slotMap.get(k); if (s) s.status = 'active'; });
         }
       }
 
