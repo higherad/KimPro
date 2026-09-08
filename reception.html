@@ -6132,7 +6132,6 @@ window.closeUexModal = function() {
     overlay.querySelector('#youpfl-close-btn').onclick = () => overlay.remove();
     overlay.querySelector('#csub-close-btn').onclick = () => { if (!window.bizfitSubmitting) overlay.remove(); };
     overlay.querySelector('#bsub-close-btn').onclick = () => { if (!window.bizfitSubmitting) overlay.remove(); };
-    overlay.addEventListener('click', e => { if (e.target === overlay && !window.bizfitSubmitting) overlay.remove(); });
   }
 
   window.switchSubmitTab = function(tab) {
