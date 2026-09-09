@@ -4926,6 +4926,9 @@ window.closeUexModal = function() {
     const cutoffDayKw = uexFmt(new Date(Date.now() - daysKw * 24 * 3600 * 1000));
     const cutoffDayYupfl = yupflSkip ? null : uexFmt(new Date(Date.now() - daysYupfl * 24 * 3600 * 1000));
     const withinCutoff = (h, cutoffDay) => !!(h && h.date && uexFmt(new Date(h.date)) >= cutoffDay);
+    // 히스토리 원본(과거 수기입력·외부연동 등)엔 "1, 2, 3"처럼 콤마 뒤 공백이 섞여있을 수 있어
+    // 재접수로 새로 채우는 시점에 정규화 — "1,2,3" 형태로 고정
+    const normKw = kw => (kw || '').split(',').map(k => k.trim()).filter(Boolean).join(',');
     const rows = pending.map(s => {
       const kwTop = (histMap.get(s.mid) || [])[0];
       const yTop  = (yupflHistMap.get(s.mid) || [])[0];
@@ -4938,8 +4941,8 @@ window.closeUexModal = function() {
         slot: s,
         matched: kwMatched || yMatched, kwMatched, yMatched, bothMatched,
         newStatus: resolveRequeueStatus(s, bothMatched ? 'accepted' : 'pending'),
-        matchKeyword: kwMatched ? kwTop.keyword : (s.searchKeyword || ''),
-        matchYupfl: yMatched ? yTop.keyword : '',
+        matchKeyword: kwMatched ? normKw(kwTop.keyword) : (s.searchKeyword || ''),
+        matchYupfl: yMatched ? normKw(yTop.keyword) : '',
       };
     });
     const matched = rows.filter(r => r.matched);
