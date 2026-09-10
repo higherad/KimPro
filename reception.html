@@ -48,6 +48,26 @@
 </head>
 <body>
 
+<div id="ha-integration-notice" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(15,23,42,.7);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#fff;border-radius:16px;padding:36px 32px 28px;max-width:420px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);position:relative;">
+    <button onclick="closeIntegrationNotice()" aria-label="닫기" style="position:absolute;top:10px;right:12px;border:none;background:transparent;font-size:22px;color:#94a3b8;cursor:pointer;line-height:1;padding:4px;">×</button>
+    <div style="font-size:40px;margin-bottom:16px;">✅</div>
+    <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:10px;">HigherAD 통합 완료</div>
+    <div style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:24px;">이제 HigherAD 관리자 페이지의 <b style="color:#10b981;">김프로</b> 메뉴에서도 동일하게 접수/관리하실 수 있습니다.</div>
+    <button onclick="location.href='https://higherad.kro.kr/?page=kimpro'" style="width:100%;padding:12px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;">김프로 메뉴로 이동</button>
+  </div>
+</div>
+<script>
+(function(){
+  if (localStorage.getItem('ha_integration_notice_dismissed') === '1') return;
+  document.getElementById('ha-integration-notice').style.display = 'flex';
+})();
+function closeIntegrationNotice() {
+  document.getElementById('ha-integration-notice').style.display = 'none';
+  localStorage.setItem('ha_integration_notice_dismissed', '1');
+}
+</script>
+
 <header>
   <div class="header-logo" onclick="location.reload()">HIGHER <span>AD</span></div>
   <nav class="header-nav" id="header-nav">
