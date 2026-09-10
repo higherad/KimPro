@@ -40,6 +40,31 @@ const PATHS = {
   slots: 'kimpro/slots',
   users: 'kimpro/users',
 };
+// 김프로.html(higher)이 읽는 격리 노드 — 같은 db/인증이라 별도 세팅 불필요.
+// higher/ha-store.js의 ha/slots→ha/kimproSlots 미러와 대칭되는 반대 방향 미러.
+const KP_MIRROR_SLOTS = 'ha/kimproSlots';
+
+// kimpro/slots 변경을 ha/kimproSlots에도 반영(편도) — 김프로.html에서도 동일하게 보이도록.
+// 실패를 조용히 삼키면 누락을 못 알아채므로 콘솔 로그 필수.
+async function mirrorToHaKimproSlots(key, patch) {
+  try {
+    const kpSnap = await get(ref(db, `${KP_MIRROR_SLOTS}/${key}`));
+    if (kpSnap.exists()) {
+      if (patch.status === 'deleted') {
+        await remove(ref(db, `${KP_MIRROR_SLOTS}/${key}`));
+      } else {
+        const { status, ...rest } = patch;
+        if (Object.keys(rest).length) await update(ref(db, `${KP_MIRROR_SLOTS}/${key}`), rest);
+      }
+    } else if (patch.status === 'active' || patch.status === 'split') {
+      const slotSnap = await get(ref(db, `${PATHS.slots}/${key}`));
+      if (slotSnap.exists()) {
+        const slot = slotSnap.val();
+        await set(ref(db, `${KP_MIRROR_SLOTS}/${key}`), { ...slot, searchKeyword: slot.searchKeyword || '' });
+      }
+    }
+  } catch (e) { console.error('ha/kimproSlots 동기화 오류:', e); }
+}
 
 async function getUserUnitPrice(userId) {
   try {
@@ -145,16 +170,19 @@ const HA = {
   async updateSlot(key, patch) {
     await update(ref(db, `${PATHS.slots}/${key}`), patch);
     dispatch('ha:slots:updated');
+    await mirrorToHaKimproSlots(key, patch);
   },
 
   async approveSlot(key) {
     await update(ref(db, `${PATHS.slots}/${key}`), { status: 'active' });
     dispatch('ha:slots:updated');
+    await mirrorToHaKimproSlots(key, { status: 'active' });
   },
 
   async deleteSlot(key) {
     await remove(ref(db, `${PATHS.slots}/${key}`));
     dispatch('ha:slots:updated');
+    try { await remove(ref(db, `${KP_MIRROR_SLOTS}/${key}`)); } catch (e) { console.error('ha/kimproSlots 삭제 동기화 오류:', e); }
   },
 
   async getDoc(path) { return get(ref(db, path)); },
