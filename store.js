@@ -167,6 +167,8 @@ const HA = {
     const newRef = await push(ref(db, PATHS.slots), newSlot);
     const result = { ...newSlot, _key: newRef.key };
     dispatch('ha:slots:updated');
+    try { await set(ref(db, `${KP_MIRROR_SLOTS}/${newRef.key}`), { ...newSlot, searchKeyword: newSlot.searchKeyword || '' }); }
+    catch (e) { console.error('ha/kimproSlots 동기화 오류:', e); }
     return result;
   },
 
