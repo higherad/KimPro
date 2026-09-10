@@ -45,6 +45,10 @@ const PATHS = {
 const KP_MIRROR_SLOTS = 'ha/kimproSlots';
 
 // kimpro/slots 변경을 ha/kimproSlots에도 반영(편도) — 김프로.html에서도 동일하게 보이도록.
+// 접수 즉시(pending 단계부터) 반영(2026-09-10 변경 — 이전엔 active/split 승인 시점까지 대기했음,
+// 사용자 요청으로 접수하자마자 양쪽 목록이 항상 동일하게 보이도록 변경). 여기는 kimpro/slots가
+// 원본(source of truth)이라 status를 포함해 patch 전체를 그대로 반영해도 안전(어휘 불일치 걱정 없음
+// — 접수관리 쪽 미러와 달리 대상이 같은 kp 어휘 체계).
 // 실패를 조용히 삼키면 누락을 못 알아채므로 콘솔 로그 필수.
 async function mirrorToHaKimproSlots(key, patch) {
   try {
@@ -52,11 +56,10 @@ async function mirrorToHaKimproSlots(key, patch) {
     if (kpSnap.exists()) {
       if (patch.status === 'deleted') {
         await remove(ref(db, `${KP_MIRROR_SLOTS}/${key}`));
-      } else {
-        const { status, ...rest } = patch;
-        if (Object.keys(rest).length) await update(ref(db, `${KP_MIRROR_SLOTS}/${key}`), rest);
+      } else if (Object.keys(patch).length) {
+        await update(ref(db, `${KP_MIRROR_SLOTS}/${key}`), patch);
       }
-    } else if (patch.status === 'active' || patch.status === 'split') {
+    } else {
       const slotSnap = await get(ref(db, `${PATHS.slots}/${key}`));
       if (slotSnap.exists()) {
         const slot = slotSnap.val();
